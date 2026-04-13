@@ -83,25 +83,29 @@ export const RoleSelector = () => {
         <div className="vintage-header">
           <div className="radio-logo">
             <div className="logo-circle"></div>
-            <h1 style={{ fontSize: '2.5rem', lineHeight: '1.2' }}>Host Perfect-Sync Online Radio Stations in Seconds</h1>
+            <h1 style={{ fontSize: '2.5rem', lineHeight: '1.2' }}>Host &amp; Listen to Online Radio Stations — Real-Time Audio Sync</h1>
           </div>
-          <h2 className="vintage-subtitle" style={{ fontSize: '1.2rem', color: '#f5deb3', marginTop: '1rem', letterSpacing: '0px' }}>Create a frequency, upload audio, and listen together. Zero latency. Zero signup.</h2>
+          <h2 className="vintage-subtitle" style={{ fontSize: '1.2rem', color: '#f5deb3', marginTop: '1rem', letterSpacing: '0px' }}>Create a station, upload audio, and listen together. Zero latency. Zero signup.</h2>
         </div>
 
         <div className="seo-value-grid">
           <div className="seo-value-item">
-            <h3>For Remote Teams</h3>
-            <p>Synchronized background ambience.</p>
+            <h3>Host Audio for Remote Teams</h3>
+            <p>Synchronized background music and ambient audio for distributed teams working together online.</p>
           </div>
           <div className="seo-value-item">
-            <h3>For TTRPG/D&D</h3>
-            <p>Trigger battle music on player devices instantly.</p>
+            <h3>Listen Together — TTRPG &amp; D&amp;D</h3>
+            <p>Broadcast synchronized battle music and ambient soundscapes to all player devices instantly.</p>
           </div>
           <div className="seo-value-item">
-            <h3>For Bedroom DJs</h3>
-            <p>Share private, uncompressed audio demos perfectly in sync.</p>
+            <h3>Create a Station for Your DJ Set</h3>
+            <p>Share uncompressed audio demo sessions in perfect sync. No OBS, no software — just a browser.</p>
           </div>
         </div>
+
+        <p style={{ textAlign: 'center', color: '#8b6f47', fontSize: '0.85rem', maxWidth: '600px', margin: '0 auto 1.5rem auto', lineHeight: '1.6' }}>
+          Virtual Radio lets you host a free real-time radio station, upload your audio playlist, and sync every listener to the exact same playback position — automatically, with under 3 seconds of latency.
+        </p>
 
         <div className="vintage-buttons-grid">
           <button
