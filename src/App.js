@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense } from 'react';
 import { useRadioStore } from './store/useRadioStore';
 import { socketService } from './utils/socketService';
 import { RoleSelector } from './components/RoleSelector';
-import { HostPanel } from './components/HostPanel';
-import { ListenerPanel } from './components/ListenerPanel';
+import { StationHelmet } from './components/StationHelmet';
 import './App.css';
+
+const HostPanel = React.lazy(() => import('./components/HostPanel').then(module => ({ default: module.HostPanel })));
+const ListenerPanel = React.lazy(() => import('./components/ListenerPanel').then(module => ({ default: module.ListenerPanel })));
 
 function App() {
   const userRole = useRadioStore((state) => state.userRole);
@@ -19,40 +21,46 @@ function App() {
   const [notification, setNotification] = useState('');
 
   useEffect(() => {
-    // Connect to Socket.IO server
-    // Use environment variable if set, otherwise use current host with port 5000
-    let socketUrl = process.env.REACT_APP_SOCKET_URL;
-    if (!socketUrl) {
-      const host = window.location.hostname;
-      const protocol = window.location.protocol;
-      socketUrl = `${protocol}//${host}:5000`;
-    }
-    const socket = socketService.connect(socketUrl);
-
-    socket.on('connect', () => {
-      setIsConnected(true);
-      console.log('✅ Connected');
-    });
-
-    socket.on('disconnect', () => {
-      setIsConnected(false);
-      console.log('❌ Disconnected');
-    });
-
-    // Fetch initial stations
-    const fetchStations = async () => {
-      try {
-        const stations = await socketService.getStations();
-        setStations(stations);
-      } catch (err) {
-        console.error('Error fetching stations:', err);
+    let stationsInterval;
+    
+    // Defer WebSocket connection to optimize LCP
+    const connectTimer = setTimeout(() => {
+      // Connect to Socket.IO server
+      // Use environment variable if set, otherwise use current host with port 5000
+      let socketUrl = process.env.REACT_APP_SOCKET_URL;
+      if (!socketUrl) {
+        const host = window.location.hostname;
+        const protocol = window.location.protocol;
+        socketUrl = `${protocol}//${host}:5000`;
       }
-    };
+      const socket = socketService.connect(socketUrl);
 
-    const stationsInterval = setInterval(fetchStations, 5000);
-    fetchStations();
+      socket.on('connect', () => {
+        setIsConnected(true);
+        console.log('✅ Connected');
+      });
+
+      socket.on('disconnect', () => {
+        setIsConnected(false);
+        console.log('❌ Disconnected');
+      });
+
+      // Fetch initial stations
+      const fetchStations = async () => {
+        try {
+          const stations = await socketService.getStations();
+          setStations(stations);
+        } catch (err) {
+          console.error('Error fetching stations:', err);
+        }
+      };
+
+      stationsInterval = setInterval(fetchStations, 5000);
+      fetchStations();
+    }, 2500);
 
     return () => {
+      clearTimeout(connectTimer);
       clearInterval(stationsInterval);
     };
   }, [setIsConnected, setStations]);
@@ -89,16 +97,20 @@ function App() {
 
       {notification && <div className="notification">{notification}</div>}
 
+      <StationHelmet />
+
       <main className="main-content">
-        {!userRole ? (
-          <div className="entry-flow">
-            <RoleSelector />
-          </div>
-        ) : userRole === 'host' && showHostPanel ? (
-          <HostPanel />
-        ) : userRole === 'listener' ? (
-          <ListenerPanel />
-        ) : null}
+        <Suspense fallback={<div style={{ textAlign: 'center', marginTop: '50px' }}>Loading...</div>}>
+          {!userRole ? (
+            <div className="entry-flow">
+              <RoleSelector />
+            </div>
+          ) : userRole === 'host' && showHostPanel ? (
+            <HostPanel />
+          ) : userRole === 'listener' ? (
+            <ListenerPanel />
+          ) : null}
+        </Suspense>
       </main>
     </div>
   );

@@ -79,13 +79,28 @@ export const RoleSelector = () => {
 
   if (!mode) {
     return (
-      <div className="role-selector vintage">
+      <div className="role-selector vintage seo-optimized">
         <div className="vintage-header">
           <div className="radio-logo">
             <div className="logo-circle"></div>
-            <h1>Virtual Radio</h1>
+            <h1 style={{ fontSize: '2.5rem', lineHeight: '1.2' }}>Host Perfect-Sync Online Radio Stations in Seconds</h1>
           </div>
-          <p className="vintage-subtitle">Real-Time Synchronized Audio Broadcast</p>
+          <h2 className="vintage-subtitle" style={{ fontSize: '1.2rem', color: '#f5deb3', marginTop: '1rem', letterSpacing: '0px' }}>Create a frequency, upload audio, and listen together. Zero latency. Zero signup.</h2>
+        </div>
+
+        <div className="seo-value-grid">
+          <div className="seo-value-item">
+            <h3>For Remote Teams</h3>
+            <p>Synchronized background ambience.</p>
+          </div>
+          <div className="seo-value-item">
+            <h3>For TTRPG/D&D</h3>
+            <p>Trigger battle music on player devices instantly.</p>
+          </div>
+          <div className="seo-value-item">
+            <h3>For Bedroom DJs</h3>
+            <p>Share private, uncompressed audio demos perfectly in sync.</p>
+          </div>
         </div>
 
         <div className="vintage-buttons-grid">
