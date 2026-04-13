@@ -20,6 +20,7 @@ export const HostPanel = () => {
   const setMessage = useRadioStore((state) => state.setMessage);
   const setError = useRadioStore((state) => state.setError);
 
+  const [uploading, setUploading] = useState(false);
   const [duration, setDuration] = useState(0);
   const [playbackTime, setPlaybackTime] = useState(0);
   const [pausedTime, setPausedTime] = useState(0);
