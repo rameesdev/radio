@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useRadioStore } from '../store/useRadioStore';
 import { socketService } from '../utils/socketService';
 import { useSocketListener } from '../hooks';
@@ -20,7 +20,6 @@ export const HostPanel = () => {
   const setMessage = useRadioStore((state) => state.setMessage);
   const setError = useRadioStore((state) => state.setError);
 
-  const [uploading, setUploading] = useState(false);
   const [duration, setDuration] = useState(0);
   const [playbackTime, setPlaybackTime] = useState(0);
   const [pausedTime, setPausedTime] = useState(0);
@@ -48,8 +47,6 @@ export const HostPanel = () => {
         }
       }
     }
-
-    setUploading(true);
 
     const getAudioDuration = (fileUrl) => {
       return new Promise((resolve) => {
@@ -95,8 +92,6 @@ export const HostPanel = () => {
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err) {
       setError(`❌ Upload Error: ${err.message}`);
-    } finally {
-      setUploading(false);
     }
   };
 
@@ -123,7 +118,7 @@ export const HostPanel = () => {
     }
   };
 
-  const handleSeek = async (time) => {
+  const handleSeek = useCallback(async (time) => {
     try {
       if (audioRef.current) {
         audioRef.current.currentTime = time;
@@ -134,7 +129,7 @@ export const HostPanel = () => {
     } catch (err) {
       setError(err.message);
     }
-  };
+  }, [currentFrequency, isPlaying, setError]);
 
   useEffect(() => {
     if (audioRef.current && currentTrack) {
