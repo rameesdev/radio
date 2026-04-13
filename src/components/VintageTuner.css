@@ -1,0 +1,472 @@
+.vintage-tuner-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  background: linear-gradient(135deg, #2a1810 0%, #3d2817 100%);
+  padding: 0.75rem 0.5rem;
+  border-radius: 1.5rem;
+  box-shadow: 
+    0 20px 60px rgba(0, 0, 0, 0.8),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  border: 2px solid #5a3a2a;
+  max-width: 500px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+@media (min-width: 768px) {
+  .vintage-tuner-container {
+    padding: 3rem 2rem;
+    gap: 2rem;
+  }
+}
+
+.tuner-title {
+  font-size: 0.85rem;
+  color: #f5deb3;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.5);
+  margin: 0;
+  letter-spacing: 2px;
+  font-weight: 300;
+  text-transform: uppercase;
+}
+
+@media (min-width: 768px) {
+  .tuner-title {
+    font-size: 2rem;
+  }
+}
+
+.tuner-panel {
+  background: linear-gradient(180deg, #4a3728 0%, #3d2817 100%);
+  border: 3px solid #8b6f47;
+  border-radius: 1rem;
+  padding: 0.5rem;
+  width: 100%;
+  box-shadow: 
+    inset 0 2px 5px rgba(255, 255, 255, 0.1),
+    inset 0 -2px 5px rgba(0, 0, 0, 0.5),
+    0 10px 30px rgba(0, 0, 0, 0.6);
+  position: relative;
+  box-sizing: border-box;
+}
+
+@media (min-width: 768px) {
+  .tuner-panel {
+    padding: 2rem;
+  }
+}
+
+.tuner-display {
+  background: linear-gradient(180deg, #1a1410 0%, #2a1810 100%);
+  border: 2px solid #5a3a2a;
+  border-radius: 0.75rem;
+  padding: 0.75rem;
+  margin-bottom: 1rem;
+  box-shadow: 
+    inset 0 2px 4px rgba(0, 0, 0, 0.8),
+    0 2px 4px rgba(0, 0, 0, 0.5);
+  box-sizing: border-box;
+}
+
+@media (min-width: 768px) {
+  .tuner-display {
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+  }
+}
+
+.frequency-display {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  gap: 1rem;
+  margin-bottom: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.freq-label {
+  font-size: 1rem;
+  color: #d4a574;
+  font-weight: bold;
+  letter-spacing: 1px;
+}
+
+.freq-value {
+  font-size: 2.2rem;
+  color: #f5deb3;
+  font-weight: bold;
+  font-family: 'Courier New', monospace;
+  text-shadow: 0 0 10px rgba(245, 222, 179, 0.3);
+  letter-spacing: 2px;
+  min-width: 120px;
+  text-align: right;
+}
+
+@media (min-width: 768px) {
+  .freq-value {
+    font-size: 3.5rem;
+    min-width: 150px;
+  }
+}
+
+.freq-input {
+  font-size: 2.2rem;
+  color: #f5deb3;
+  font-weight: bold;
+  font-family: 'Courier New', monospace;
+  letter-spacing: 2px;
+  min-width: 120px;
+  text-align: right;
+  background: linear-gradient(180deg, #1a1410 0%, #2a1810 100%);
+  border: 2px solid #d4a574;
+  border-radius: 0.5rem;
+  padding: 0.5rem 1rem;
+  transition: all 0.3s ease;
+}
+
+@media (min-width: 768px) {
+  .freq-input {
+    font-size: 3.5rem;
+    min-width: 150px;
+  }
+}
+
+.freq-input:focus {
+  outline: none;
+  border-color: #f5deb3;
+  box-shadow: 0 0 15px rgba(212, 165, 116, 0.5);
+  background: linear-gradient(180deg, #2a1810 0%, #3d2817 100%);
+}
+
+.freq-input::placeholder {
+  color: rgba(212, 165, 116, 0.5);
+}
+
+
+.freq-range {
+  display: flex;
+  justify-content: space-between;
+  color: #8b6f47;
+  font-size: 0.85rem;
+  font-weight: bold;
+}
+
+.tuner-dial-container {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  margin: 0 auto 1.5rem;
+  cursor: grab;
+  user-select: none;
+  touch-action: none;
+  overflow: hidden;
+}
+
+@media (min-width: 768px) {
+  .tuner-dial-container {
+    width: 280px;
+    height: 280px;
+    margin: 0 auto 2rem;
+  }
+}
+
+.tuner-dial-container:active {
+  cursor: grabbing;
+}
+
+.tuner-outer-ring {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border: 6px solid #8b6f47;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.1), transparent),
+              radial-gradient(circle, #3d2817 0%, #2a1810 100%);
+  box-shadow: 
+    inset 0 8px 16px rgba(0, 0, 0, 0.8),
+    inset 0 -4px 8px rgba(0, 0, 0, 0.4),
+    0 8px 16px rgba(0, 0, 0, 0.6);
+  overflow: hidden;
+}
+
+.frequency-marker {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 2px;
+  height: 6px;
+  background: #d4a574;
+  transform-origin: 0 0;
+  margin-left: -1px;
+}
+
+@media (min-width: 768px) {
+  .frequency-marker {
+    height: 8px;
+  }
+}
+
+.frequency-marker.major {
+  height: 10px;
+  width: 3px;
+  background: #f5deb3;
+  box-shadow: 0 0 4px rgba(245, 222, 179, 0.5);
+  margin-left: -1.5px;
+}
+
+@media (min-width: 768px) {
+  .frequency-marker.major {
+    height: 14px;
+  }
+}
+
+.tuner-dial {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center;
+  transition: transform 0.05s ease-out;
+}
+
+.needle {
+  position: absolute;
+  top: 15%;
+  width: 10px;
+  height: 35%;
+  background: linear-gradient(90deg, transparent, #ff6b35, transparent);
+  border-radius: 50%;
+  box-shadow: 
+    0 0 8px rgba(255, 107, 53, 0.8),
+    0 0 16px rgba(255, 107, 53, 0.4);
+}
+
+.dial-center {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  background: radial-gradient(circle at 30% 30%, #ffd700, #d4a574);
+  border-radius: 50%;
+  border: 3px solid #8b6f47;
+  box-shadow: 
+    0 0 12px rgba(255, 215, 0, 0.6),
+    inset 0 2px 4px rgba(255, 255, 255, 0.3);
+}
+
+.tuner-pointer {
+  position: absolute;
+  top: -15px;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-left: 10px solid transparent;
+  border-right: 10px solid transparent;
+  border-top: 15px solid #ff6b35;
+  transform: translateX(-50%);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.6));
+}
+
+.tuner-button {
+  width: 100%;
+  padding: 0.6rem 0.8rem;
+  background: linear-gradient(135deg, #ff6b35 0%, #ff5722 100%);
+  border: 3px solid #d84315;
+  border-radius: 0.75rem;
+  color: white;
+  font-size: 0.8rem;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  box-shadow: 
+    0 8px 16px rgba(255, 107, 53, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+  box-sizing: border-box;
+  min-height: 40px;
+}
+
+@media (min-width: 768px) {
+  .tuner-button {
+    padding: 1rem;
+    font-size: 1.2rem;
+    min-height: 44px;
+  }
+}
+
+.tuner-button:hover {
+  background: linear-gradient(135deg, #ff7645 0%, #ff6835 100%);
+  transform: translateY(-2px);
+  box-shadow: 
+    0 12px 24px rgba(255, 107, 53, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.tuner-button:active {
+  transform: translateY(0);
+  box-shadow: 
+    0 4px 8px rgba(255, 107, 53, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+/* Tablet - Medium devices */
+@media (max-width: 768px) {
+  .vintage-tuner-container {
+    padding: 2rem 1.5rem;
+    gap: 1.5rem;
+  }
+
+  .tuner-title {
+    font-size: 1.5rem;
+  }
+
+  .freq-value {
+    font-size: 2.8rem;
+    min-width: 130px;
+  }
+
+  .tuner-panel {
+    padding: 1.5rem;
+  }
+
+  .tuner-dial-container {
+    width: 240px;
+    height: 240px;
+  }
+}
+
+/* Mobile - Small devices */
+@media (max-width: 600px) {
+  .vintage-tuner-container {
+    padding: 1.5rem 1rem;
+    gap: 1.2rem;
+    max-width: 100%;
+  }
+
+  .tuner-title {
+    font-size: 1.2rem;
+    letter-spacing: 1px;
+  }
+
+  .tuner-panel {
+    padding: 1rem;
+  }
+
+  .tuner-display {
+    padding: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .frequency-display {
+    gap: 0.5rem;
+    margin-bottom: 0.3rem;
+  }
+
+  .freq-label {
+    font-size: 0.85rem;
+  }
+
+  .freq-value {
+    font-size: 2rem;
+    min-width: 100px;
+  }
+
+  .freq-range {
+    font-size: 0.75rem;
+  }
+
+  .tuner-dial-container {
+    width: 200px;
+    height: 200px;
+    margin: 0 auto 1.5rem;
+  }
+
+  .frequency-marker {
+    height: 6px;
+  }
+
+  .frequency-marker.major {
+    height: 11px;
+    width: 2px;
+  }
+
+  .needle {
+    width: 8px;
+  }
+
+  .dial-center {
+    width: 16px;
+    height: 16px;
+    border: 2px solid #8b6f47;
+  }
+
+  .tuner-pointer {
+    top: -12px;
+    border-left: 8px solid transparent;
+    border-right: 8px solid transparent;
+    border-top: 12px solid #ff6b35;
+  }
+
+  .tuner-button {
+    padding: 0.85rem;
+    font-size: 1rem;
+    letter-spacing: 1px;
+  }
+}
+
+/* Very small phones */
+@media (max-width: 480px) {
+  .vintage-tuner-container {
+    padding: 1rem 0.75rem;
+    gap: 1rem;
+  }
+
+  .tuner-title {
+    font-size: 1rem;
+    letter-spacing: 0.5px;
+  }
+
+  .tuner-dial-container {
+    width: 180px;
+    height: 180px;
+  }
+
+  .freq-value {
+    font-size: 1.75rem;
+    min-width: 90px;
+  }
+
+  .tuner-button {
+    padding: 0.75rem;
+    font-size: 0.9rem;
+  }
+}
+
+/* Extra small phones */
+@media (max-width: 360px) {
+  .vintage-tuner-container {
+    padding: 0.75rem 0.5rem;
+    gap: 0.8rem;
+  }
+
+  .tuner-title {
+    font-size: 0.9rem;
+    letter-spacing: 0px;
+  }
+
+  .tuner-dial-container {
+    width: 160px;
+    height: 160px;
+  }
+
+  .freq-value {
+    font-size: 1.5rem;
+    min-width: 80px;
+  }
+}
