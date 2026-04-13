@@ -29,17 +29,27 @@ export const StationHelmet = () => {
     }
   };
 
+  const canonicalUrl = typeof window !== 'undefined'
+    ? `${window.location.protocol}//${window.location.host}/station/${currentFrequency}`
+    : `https://ramzradio.in/station/${currentFrequency}`;
+
   return (
     <Helmet>
       <title>{title} | Virtual Radio</title>
       <meta name="description" content={description} />
+      <link rel="canonical" href={canonicalUrl} />
       
       <meta property="og:title" content={title} />
       <meta property="og:description" content={description} />
       <meta property="og:type" content="music.radio_station" />
-      <meta property="og:url" content={typeof window !== 'undefined' ? `${window.location.protocol}//${window.location.host}/station/${currentFrequency}` : ''} />
+      <meta property="og:url" content={canonicalUrl} />
+      <meta property="og:site_name" content="Virtual Radio" />
+      <meta property="og:image" content="https://ramzradio.in/og-image.png" />
       
       <meta name="twitter:card" content="summary_large_image" />
+      <meta name="twitter:site" content="@ramzradio" />
+      <meta name="twitter:title" content={title} />
+      <meta name="twitter:description" content={description} />
       <meta name="twitter:label1" content="Listeners" />
       <meta name="twitter:data1" content={(listenerCount || 0).toString()} />
       <meta name="twitter:label2" content="Status" />

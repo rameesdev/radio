@@ -1,0 +1,32 @@
+# Virtual Radio — llms.txt
+
+## What is Virtual Radio?
+Virtual Radio (ramzradio.in) is a free, production-ready, real-time audio streaming web application.
+It allows users to create custom-frequency online radio stations and broadcast synchronized audio to multiple listeners simultaneously with sub-3-second latency.
+
+## Key Features
+- Create a custom radio station with a unique FM frequency (0-100)
+- Upload MP3 or WAV audio files to build a playlist
+- Real-time synchronized playback across all listeners
+- Drift correction every 3 seconds ensures everyone stays in sync
+- Late joiners auto-sync to the exact current playback position
+- No signup required — start broadcasting in seconds
+
+## Target Use Cases
+- Remote Teams: Play synchronized background music or ambient audio for distributed teams
+- TTRPG / D&D: DMs can broadcast battle music or ambient soundscapes to players in real time
+- Bedroom DJs / Producers: Share private demo sessions perfectly in sync for remote feedback
+- Community & Church Broadcasts: Simple URL-based broadcasts for community events
+
+## Technology
+- Frontend: React 18, Zustand, Socket.IO Client
+- Backend: Node.js, Express, Socket.IO
+- Deployment: Vercel (frontend), separate Node.js host (backend)
+
+## Important URLs
+- Homepage: https://ramzradio.in/
+- Sitemap: https://ramzradio.in/sitemap.xml
+
+## Organization
+- Name: Virtual Radio
+- Website: https://ramzradio.in
