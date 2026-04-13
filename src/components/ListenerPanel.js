@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useRef } from 'react';
 import { useRadioStore } from '../store/useRadioStore';
 import { useSyncedAudio, useSocketListener } from '../hooks';
 import { SonoscapePlayer } from './SonoscapePlayer';
@@ -20,14 +20,6 @@ export const ListenerPanel = () => {
 
   // Sync audio playback with server
   useSyncedAudio(audioRef, 'listener', currentFrequency);
-
-  // Format time for display
-  const formatTime = (seconds) => {
-    if (!seconds || isNaN(seconds)) return '0:00';
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
 
   return (
     <div className="listener-panel">

@@ -9,7 +9,6 @@ import './App.css';
 function App() {
   const userRole = useRadioStore((state) => state.userRole);
   const showHostPanel = useRadioStore((state) => state.showHostPanel);
-  const showJoinPanel = useRadioStore((state) => state.showJoinPanel);
   const isConnected = useRadioStore((state) => state.isConnected);
   const error = useRadioStore((state) => state.error);
   const message = useRadioStore((state) => state.message);

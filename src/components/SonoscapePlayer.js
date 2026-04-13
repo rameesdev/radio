@@ -32,13 +32,14 @@ export const SonoscapePlayer = ({
   const isPureFullscreenRef = useRef(false);
 
   useEffect(() => {
-    if (!containerRef.current || !canvasRef.current || !vuCanvasRef.current || !audioRef?.current) return;
+    const container = containerRef.current;
+    if (!container || !canvasRef.current || !vuCanvasRef.current || !audioRef?.current) return;
 
     const mc = canvasRef.current;
     const vc = vuCanvasRef.current;
     const ctx = mc.getContext('2d', { alpha: false });
     const vx = vc.getContext('2d', { alpha: false });
-    const flash = containerRef.current.querySelector('#flash-overlay');
+    const flash = container.querySelector('#flash-overlay');
 
     let mode = 'bars';
     let gain = 1.5;
@@ -220,21 +221,13 @@ export const SonoscapePlayer = ({
       }
     }
 
-    function drawIdle() {
-      if (animId) cancelAnimationFrame(animId);
-      const W = mc.width; const H = mc.height;
-      ctx.fillStyle = '#060402'; ctx.fillRect(0, 0, W, H);
-      drawGrid(W, H, 0.04);
-      ctx.fillStyle = th(20); ctx.font = '11px Courier New'; ctx.textAlign = 'center';
-      ctx.fillText('NO AUDIO STREAM CONNECTED', W / 2, H / 2);
-      drawVu(0);
-    }
+
 
     function setMode(m) {
       mode = m; particles = []; lissHist = []; wfBuf = null;
-      const modeNameEl = containerRef.current?.querySelector('#mode-name');
+      const modeNameEl = container?.querySelector('#mode-name');
       if (modeNameEl) modeNameEl.textContent = modeNames[m] || m.toUpperCase();
-      const modeBtns = containerRef.current?.querySelectorAll('.mbtn');
+      const modeBtns = container?.querySelectorAll('.mbtn');
       if (modeBtns) modeBtns.forEach(btn => btn.classList.toggle('active', btn.dataset.mode === m));
     }
 
@@ -267,7 +260,7 @@ export const SonoscapePlayer = ({
 
       energySmooth += (avg * gain * 2.5 - energySmooth) * 0.05;
       const energy = Math.min(energySmooth, 1);
-      const energyInner = containerRef.current?.querySelector('#energy-inner');
+      const energyInner = container?.querySelector('#energy-inner');
       if (energyInner) {
         energyInner.style.width = (energy * 100).toFixed(0) + '%';
         energyInner.style.background = energy > 0.8 ? '#ff2200' : energy > 0.5 ? th(55, 60) : th(45);
@@ -285,7 +278,7 @@ export const SonoscapePlayer = ({
 
       drawVu(Math.min(avg * gain * 2.5, 1));
 
-      const sigLed = containerRef.current?.querySelector('#l-sig');
+      const sigLed = container?.querySelector('#l-sig');
       if (sigLed) sigLed.className = 'led' + (avg > 0.01 ? ' on-green' : '');
 
       if (autoOn) {
@@ -654,7 +647,7 @@ export const SonoscapePlayer = ({
       try {
         if (!document.fullscreenElement) {
           setIsPureFullscreen(true);
-          await containerRef.current?.requestFullscreen?.().catch(() => {});
+          await container?.requestFullscreen?.().catch(() => {});
         } else {
           await document.exitFullscreen?.().catch(() => {});
           setIsPureFullscreen(false);
@@ -665,7 +658,7 @@ export const SonoscapePlayer = ({
     };
 
     // Setup fullscreen button click handler
-    const fsBtn = containerRef.current?.querySelector('#btn-fullscreen');
+    const fsBtn = container?.querySelector('#btn-fullscreen');
     if (fsBtn) fsBtn.addEventListener('click', handleFullscreenButtonClick);
 
     document.addEventListener('keydown', handleKeyDown);
@@ -676,7 +669,7 @@ export const SonoscapePlayer = ({
     draw();
 
     return () => {
-      const fsBtnCleanup = containerRef.current?.querySelector('#btn-fullscreen');
+      const fsBtnCleanup = container?.querySelector('#btn-fullscreen');
       if (fsBtnCleanup) fsBtnCleanup.removeEventListener('click', handleFullscreenButtonClick);
       document.removeEventListener('keydown', handleKeyDown);
       document.removeEventListener('fullscreenchange', handleFullscreenChange);

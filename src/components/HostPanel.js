@@ -20,7 +20,6 @@ export const HostPanel = () => {
   const setMessage = useRadioStore((state) => state.setMessage);
   const setError = useRadioStore((state) => state.setError);
 
-  const [uploading, setUploading] = useState(false);
   const [duration, setDuration] = useState(0);
   const [playbackTime, setPlaybackTime] = useState(0);
   const [pausedTime, setPausedTime] = useState(0);
@@ -136,13 +135,6 @@ export const HostPanel = () => {
     }
   };
 
-  const formatTime = (seconds) => {
-    if (!seconds || isNaN(seconds)) return '0:00';
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
   useEffect(() => {
     if (audioRef.current && currentTrack) {
       audioRef.current.src = currentTrack.fileUrl;
@@ -152,7 +144,7 @@ export const HostPanel = () => {
         audioRef.current.play().catch(err => console.error('Playback error:', err));
       }
     }
-  }, [currentTrack]);
+  }, [currentTrack, isPlaying]);
 
   useEffect(() => {
     if (audioRef.current) {
@@ -185,7 +177,7 @@ export const HostPanel = () => {
       document.removeEventListener('mousemove', handleMouseMove);
       document.removeEventListener('mouseup', handleMouseUp);
     };
-  }, [isDragging, duration, isPlaying]);
+  }, [isDragging, duration, handleSeek]);
 
   const handleSkipTrack = async () => {
     try {
