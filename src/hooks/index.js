@@ -91,15 +91,15 @@ export const useSyncedAudio = (audioRef, userRole, currentFrequency) => {
   const isPlaying = useRadioStore((state) => state.isPlaying);
   const setCurrentTime = useRadioStore((state) => state.setCurrentTime);
 
-  const syncIntervalRef = useRef(null);
   const lastSyncTimeRef = useRef(null);
 
   useEffect(() => {
-    if (!audioRef.current || userRole !== 'listener') return;
+    const audio = audioRef.current;
+    if (!audio || userRole !== 'listener') return;
 
     // Update local playback time
     const handleTimeUpdate = async () => {
-      const localTime = audioRef.current.currentTime;
+      const localTime = audio.currentTime;
       setCurrentTime(localTime);
 
       // Periodic sync every 3 seconds
@@ -112,7 +112,7 @@ export const useSyncedAudio = (audioRef, userRole, currentFrequency) => {
             // Correct playback drift
             const offset = response.offset;
             if (Math.abs(offset) > 0.5) {
-              audioRef.current.currentTime = response.serverTime;
+              audio.currentTime = response.serverTime;
               console.log(
                 `🔄 Corrected drift: ${offset.toFixed(2)}s, serverTime: ${response.serverTime.toFixed(2)}s`
               );
@@ -124,12 +124,10 @@ export const useSyncedAudio = (audioRef, userRole, currentFrequency) => {
       }
     };
 
-    audioRef.current.addEventListener('timeupdate', handleTimeUpdate);
+    audio.addEventListener('timeupdate', handleTimeUpdate);
 
     return () => {
-      if (audioRef.current) {
-        audioRef.current.removeEventListener('timeupdate', handleTimeUpdate);
-      }
+      audio.removeEventListener('timeupdate', handleTimeUpdate);
     };
   }, [audioRef, userRole, currentFrequency, setCurrentTime]);
 
