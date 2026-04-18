@@ -241,6 +241,60 @@ export class SocketService {
   offStationsUpdated() {
     this.socket.off('server:stations-updated');
   }
+
+  // ============ VOICE CHAT (WebRTC Signaling) ============
+
+  micStart(frequency, userName, userId) {
+    this.socket?.emit('voice:mic-start', { frequency, userName, userId });
+  }
+
+  micStop(frequency, userName) {
+    this.socket?.emit('voice:mic-stop', { frequency, userName });
+  }
+
+  sendVoiceOffer(targetSocketId, offer, userName) {
+    this.socket?.emit('voice:offer', { targetSocketId, offer, userName });
+  }
+
+  sendVoiceAnswer(targetSocketId, answer) {
+    this.socket?.emit('voice:answer', { targetSocketId, answer });
+  }
+
+  sendIceCandidate(targetSocketId, candidate) {
+    this.socket?.emit('voice:ice-candidate', { targetSocketId, candidate });
+  }
+
+  onVoiceUserStarted(callback) {
+    this.socket?.on('server:voice-user-started', callback);
+  }
+
+  onVoiceUserStopped(callback) {
+    this.socket?.on('server:voice-user-stopped', callback);
+  }
+
+  onVoiceOffer(callback) {
+    this.socket?.on('server:voice-offer', callback);
+  }
+
+  onVoiceAnswer(callback) {
+    this.socket?.on('server:voice-answer', callback);
+  }
+
+  onVoiceIceCandidate(callback) {
+    this.socket?.on('server:voice-ice-candidate', callback);
+  }
+
+  offVoiceEvents() {
+    this.socket?.off('server:voice-user-started');
+    this.socket?.off('server:voice-user-stopped');
+    this.socket?.off('server:voice-offer');
+    this.socket?.off('server:voice-answer');
+    this.socket?.off('server:voice-ice-candidate');
+  }
+
+  getSocketId() {
+    return this.socket?.id || null;
+  }
 }
 
 export const socketService = new SocketService();

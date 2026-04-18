@@ -3,6 +3,7 @@ import { useRadioStore } from '../store/useRadioStore';
 import { socketService } from '../utils/socketService';
 import { useSocketListener } from '../hooks';
 import { SonoscapePlayer } from './SonoscapePlayer';
+import { MicrophoneChat } from './MicrophoneChat';
 import './HostPanel.css';
 
 export const HostPanel = () => {
@@ -237,6 +238,13 @@ export const HostPanel = () => {
           onLoadedMetadata={(e) => setDuration(e.target.duration || currentTrack?.duration || 0)}
           onTimeUpdate={(e) => setPlaybackTime(e.target.currentTime)}
           onEnded={() => handleSkipTrack()}
+        />
+
+        {/* 🎤 Voice Chat */}
+        <MicrophoneChat
+          frequency={currentFrequency}
+          userName={hostName}
+          userRole="host"
         />
 
         {/* ✅ OLD CONTROLS REMOVED - Now integrated in SonoscapePlayer */}

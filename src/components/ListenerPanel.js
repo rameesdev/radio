@@ -2,11 +2,13 @@ import React, { useRef } from 'react';
 import { useRadioStore } from '../store/useRadioStore';
 import { useSyncedAudio, useSocketListener } from '../hooks';
 import { SonoscapePlayer } from './SonoscapePlayer';
+import { MicrophoneChat } from './MicrophoneChat';
 import './ListenerPanel.css';
 
 export const ListenerPanel = () => {
   const currentFrequency = useRadioStore((state) => state.currentFrequency);
   const hostName = useRadioStore((state) => state.hostName);
+  const userName = useRadioStore((state) => state.userName);
   const currentTrack = useRadioStore((state) => state.currentTrack);
   const isPlaying = useRadioStore((state) => state.isPlaying);
   const currentTime = useRadioStore((state) => state.currentTime);
@@ -74,6 +76,13 @@ export const ListenerPanel = () => {
             <p className="info">📻 Tuned in, waiting for content...</p>
           )}
         </div>
+
+        {/* 🎤 Voice Chat — listeners can also speak */}
+        <MicrophoneChat
+          frequency={currentFrequency}
+          userName={userName || 'Listener'}
+          userRole="listener"
+        />
 
         <div className="queue-section">
           <h3>Next Up ({playlist.length} songs)</h3>
