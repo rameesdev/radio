@@ -1,0 +1,64 @@
+.legal-container {
+  max-width: 800px;
+  margin: 40px auto;
+  padding: 40px;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(10px);
+  border-radius: 20px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #fff;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  line-height: 1.6;
+}
+
+.legal-container h1 {
+  font-size: 2.5rem;
+  margin-bottom: 30px;
+  background: linear-gradient(135deg, #fff 0%, #aaa 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 800;
+}
+
+.legal-container h2 {
+  font-size: 1.5rem;
+  margin-top: 30px;
+  margin-bottom: 15px;
+  color: #00d2ff;
+}
+
+.legal-container p {
+  margin-bottom: 20px;
+  color: #ccc;
+}
+
+.legal-container ul {
+  margin-bottom: 20px;
+  padding-left: 20px;
+}
+
+.legal-container li {
+  margin-bottom: 10px;
+  color: #ccc;
+}
+
+.legal-container a {
+  color: #00d2ff;
+  text-decoration: none;
+  transition: opacity 0.2s;
+}
+
+.legal-container a:hover {
+  opacity: 0.8;
+}
+
+@media (max-width: 768px) {
+  .legal-container {
+    margin: 20px;
+    padding: 20px;
+  }
+  
+  .legal-container h1 {
+    font-size: 2rem;
+  }
+}

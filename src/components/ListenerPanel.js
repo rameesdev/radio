@@ -34,7 +34,7 @@ export const ListenerPanel = () => {
 
         {/* ✅ Pass audioRef and playlist to visualizer for consistent layout */}
         {currentTrack?.fileUrl && (
-          <SonoscapePlayer 
+          <SonoscapePlayer
             audioRef={audioRef}
             isPlaying={isPlaying}
             trackName={currentTrack?.title}
