@@ -97,23 +97,16 @@
   border-radius: 8px;
   overflow: hidden;
   border: 1px solid #2a1a08;
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-height: 250px;
-}
-
-@media (min-width: 768px) {
-  #canvas-wrap {
-    min-height: 400px;
-  }
+  height: clamp(150px, 44vh, 430px);
+  height: clamp(150px, 44svh, 430px);
 }
 
 #main-canvas {
+  position: absolute;
+  inset: 0;
   display: block;
   width: 100%;
   height: 100%;
-  flex: 1;
 }
 
 #flash-overlay {
@@ -148,6 +141,7 @@
 
 #vu-canvas {
   flex: 1;
+  min-width: 0;
   height: 18px;
   display: block;
   border-radius: 3px;
@@ -493,165 +487,73 @@
   display: none;
 }
 
-/* Fullscreen mode - use native fullscreen state */
-.sonoscope-container:fullscreen,
-.sonoscope-container:-webkit-full-screen,
-.sonoscope-container:-moz-full-screen,
-.sonoscope-container:-ms-fullscreen,
-.sonoscope-container.fullscreen {
-  position: fixed !important;
-  top: 0 !important;
-  left: 0 !important;
-  width: 100% !important;
-  height: 100% !important;
-  padding: 0 !important;
-  border-radius: 0 !important;
-  min-height: 100vh !important;
-  z-index: 9999 !important;
-  background: #000 !important;
-  display: flex !important;
-  flex-direction: column !important;
-  gap: 0 !important;
-  margin: 0 !important;
-  overflow: hidden !important;
+/* Native fullscreen and the iPhone Safari viewport fallback share one layout. */
+.sonoscope-container.sonoscope-fullscreen {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  max-width: none;
+  max-height: none;
+  padding: 0;
+  border-radius: 0;
+  gap: 0;
+  background: #000;
+  z-index: 10000;
 }
 
-/* Expand canvas to fill fullscreen */
-.sonoscope-container.fullscreen #canvas-wrap,
-.sonoscope-container:fullscreen #canvas-wrap,
-.sonoscope-container:-webkit-full-screen #canvas-wrap,
-.sonoscope-container:-moz-full-screen #canvas-wrap,
-.sonoscope-container:-ms-fullscreen #canvas-wrap {
-  flex: 1 !important;
-  width: 100% !important;
-  height: 100% !important;
-  margin: 0 !important;
-  padding: 0 !important;
+.sonoscope-container.sonoscope-viewport {
+  height: 100vh;
+  height: 100dvh;
+  overscroll-behavior: none;
+  touch-action: none;
 }
 
-/* Hide ALL UI controls in fullscreen - show canvas only */
-.sonoscope-container.fullscreen #topbar,
-.sonoscope-container:fullscreen #topbar,
-.sonoscope-container:-webkit-full-screen #topbar,
-.sonoscope-container:-moz-full-screen #topbar,
-.sonoscope-container:-ms-fullscreen #topbar {
-  display: none !important;
-  visibility: hidden !important;
-  height: 0 !important;
-  min-height: 0 !important;
-  max-height: 0 !important;
-  overflow: hidden !important;
-  flex: 0 !important;
+.sonoscope-viewport-open,
+.sonoscope-viewport-open body {
+  overflow: hidden;
+  overscroll-behavior: none;
 }
 
-.sonoscope-container.fullscreen #vu-row,
-.sonoscope-container:fullscreen #vu-row,
-.sonoscope-container:-webkit-full-screen #vu-row,
-.sonoscope-container:-moz-full-screen #vu-row,
-.sonoscope-container:-ms-fullscreen #vu-row {
-  display: none !important;
-  visibility: hidden !important;
-  height: 0 !important;
-  min-height: 0 !important;
-  max-height: 0 !important;
-  overflow: hidden !important;
-  flex: 0 !important;
+.sonoscope-viewport-open .main-content {
+  z-index: 10001;
 }
 
-.sonoscope-container.fullscreen #bpm-row,
-.sonoscope-container:fullscreen #bpm-row,
-.sonoscope-container:-webkit-full-screen #bpm-row,
-.sonoscope-container:-moz-full-screen #bpm-row,
-.sonoscope-container:-ms-fullscreen #bpm-row {
-  display: none !important;
-  visibility: hidden !important;
-  height: 0 !important;
-  min-height: 0 !important;
-  max-height: 0 !important;
-  overflow: hidden !important;
-  flex: 0 !important;
+/* Backdrop filters and transforms would anchor the fixed fallback to the card. */
+.sonoscope-viewport-open :is(.host-panel-content, .listener-panel-content) {
+  -webkit-backdrop-filter: none;
+  backdrop-filter: none;
+  animation: none;
 }
 
-.sonoscope-container.fullscreen #theme-row,
-.sonoscope-container:fullscreen #theme-row,
-.sonoscope-container:-webkit-full-screen #theme-row,
-.sonoscope-container:-moz-full-screen #theme-row,
-.sonoscope-container:-ms-fullscreen #theme-row {
-  display: none !important;
-  visibility: hidden !important;
-  height: 0 !important;
-  min-height: 0 !important;
-  max-height: 0 !important;
-  overflow: hidden !important;
-  flex: 0 !important;
+.sonoscope-fullscreen > :not(#canvas-wrap):not(#topbar),
+.sonoscope-fullscreen #topbar > :not(.fs-btn) {
+  display: none;
 }
 
-.sonoscope-container.fullscreen #mode-wrap,
-.sonoscope-container:fullscreen #mode-wrap,
-.sonoscope-container:-webkit-full-screen #mode-wrap,
-.sonoscope-container:-moz-full-screen #mode-wrap,
-.sonoscope-container:-ms-fullscreen #mode-wrap {
-  display: none !important;
-  visibility: hidden !important;
-  height: 0 !important;
-  min-height: 0 !important;
-  max-height: 0 !important;
-  overflow: hidden !important;
-  flex: 0 !important;
+.sonoscope-fullscreen #canvas-wrap {
+  flex: 1;
+  min-height: 0;
+  border: 0;
+  border-radius: 0;
 }
 
-.sonoscope-container.fullscreen #ctrl-row,
-.sonoscope-container:fullscreen #ctrl-row,
-.sonoscope-container:-webkit-full-screen #ctrl-row,
-.sonoscope-container:-moz-full-screen #ctrl-row,
-.sonoscope-container:-ms-fullscreen #ctrl-row {
-  display: none !important;
-  visibility: hidden !important;
-  height: 0 !important;
-  min-height: 0 !important;
-  max-height: 0 !important;
-  overflow: hidden !important;
-  flex: 0 !important;
+.sonoscope-fullscreen #topbar {
+  position: absolute;
+  top: max(8px, env(safe-area-inset-top));
+  right: max(8px, env(safe-area-inset-right));
+  z-index: 1;
+  padding: 0;
 }
 
-.sonoscope-container.fullscreen #botbar,
-.sonoscope-container:fullscreen #botbar,
-.sonoscope-container:-webkit-full-screen #botbar,
-.sonoscope-container:-moz-full-screen #botbar,
-.sonoscope-container:-ms-fullscreen #botbar {
-  display: none !important;
-  visibility: hidden !important;
-  height: 0 !important;
-  margin: 0 !important;
-  padding: 0 !important;
+.sonoscope-container #topbar .fs-btn {
+  min-width: 44px;
+  min-height: 44px;
+  flex-shrink: 0;
 }
 
-/* Full canvas coverage in fullscreen */
-.sonoscope-container:fullscreen #canvas-wrap,
-.sonoscope-container:-webkit-full-screen #canvas-wrap,
-.sonoscope-container:-moz-full-screen #canvas-wrap,
-.sonoscope-container:-ms-fullscreen #canvas-wrap,
-.sonoscope-container.fullscreen #canvas-wrap {
-  width: 100% !important;
-  height: 100% !important;
-  border: none !important;
-  border-radius: 0 !important;
-  flex: 1 !important;
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-}
-
-.sonoscope-container:fullscreen #main-canvas,
-.sonoscope-container:-webkit-full-screen #main-canvas,
-.sonoscope-container:-moz-full-screen #main-canvas,
-.sonoscope-container:-ms-fullscreen #main-canvas,
-.sonoscope-container.fullscreen #main-canvas {
-  width: auto !important;
-  height: auto !important;
-  max-width: 100% !important;
-  max-height: 100% !important;
-  object-fit: contain !important;
+.sonoscope-fullscreen #topbar .fs-btn {
+  padding-inline: 12px;
 }
 
 /* Responsive adjustments - Mobile First */
@@ -685,9 +587,6 @@
     font-size: 6px;
   }
 
-  #main-canvas {
-    height: 150px;
-  }
 
   #vu-canvas {
     height: 18px;
@@ -789,10 +688,6 @@
 
   .vu-lbl {
     font-size: 7px;
-  }
-
-  #main-canvas {
-    height: 120px;
   }
 
   #vu-canvas {
@@ -944,9 +839,6 @@
     letter-spacing: 1px;
   }
 
-  #main-canvas {
-    height: 180px;
-  }
 
   #bpm-display {
     font-size: 18px;
@@ -1287,88 +1179,6 @@
   color: #8b6f47;
 }
 
-/* Hide ALL controls in fullscreen - only show canvas */
-.sonoscope-container.fullscreen .player-controls-section,
-.sonoscope-container:fullscreen .player-controls-section,
-.sonoscope-container:-webkit-full-screen .player-controls-section,
-.sonoscope-container:-moz-full-screen .player-controls-section,
-.sonoscope-container:-ms-fullscreen .player-controls-section {
-  display: none !important;
-  visibility: hidden !important;
-  height: 0 !important;
-  min-height: 0 !important;
-  max-height: 0 !important;
-  overflow: hidden !important;
-  flex: 0 !important;
-  margin: 0 !important;
-  padding: 0 !important;
-}
-
-.sonoscope-container.fullscreen .embedded-playlist,
-.sonoscope-container:fullscreen .embedded-playlist,
-.sonoscope-container:-webkit-full-screen .embedded-playlist,
-.sonoscope-container:-moz-full-screen .embedded-playlist,
-.sonoscope-container:-ms-fullscreen .embedded-playlist {
-  display: none !important;
-  visibility: hidden !important;
-  height: 0 !important;
-  min-height: 0 !important;
-  max-height: 0 !important;
-  overflow: hidden !important;
-  flex: 0 !important;
-  margin: 0 !important;
-  padding: 0 !important;
-}
-
-.sonoscope-container.fullscreen .playback-info,
-.sonoscope-container:fullscreen .playback-info,
-.sonoscope-container:-webkit-full-screen .playback-info,
-.sonoscope-container:-moz-full-screen .playback-info,
-.sonoscope-container:-ms-fullscreen .playback-info {
-  display: none !important;
-  visibility: hidden !important;
-  height: 0 !important;
-  min-height: 0 !important;
-  max-height: 0 !important;
-  overflow: hidden !important;
-  flex: 0 !important;
-  margin: 0 !important;
-  padding: 0 !important;
-}
-
-.sonoscope-container.fullscreen .transport-controls,
-.sonoscope-container:fullscreen .transport-controls,
-.sonoscope-container:-webkit-full-screen .transport-controls,
-.sonoscope-container:-moz-full-screen .transport-controls,
-.sonoscope-container:-ms-fullscreen .transport-controls {
-  display: none !important;
-  visibility: hidden !important;
-  height: 0 !important;
-  min-height: 0 !important;
-  max-height: 0 !important;
-  overflow: hidden !important;
-  flex: 0 !important;
-  margin: 0 !important;
-  padding: 0 !important;
-}
-
-.sonoscope-container.fullscreen .upload-section,
-.sonoscope-container:fullscreen .upload-section,
-.sonoscope-container:-webkit-full-screen .upload-section,
-.sonoscope-container:-moz-full-screen .upload-section,
-.sonoscope-container:-ms-fullscreen .upload-section {
-  display: none !important;
-  visibility: hidden !important;
-  height: 0 !important;
-  min-height: 0 !important;
-  max-height: 0 !important;
-  overflow: hidden !important;
-  flex: 0 !important;
-  margin: 0 !important;
-  padding: 0 !important;
-}
-
-/* Responsive adjustments for new player controls */
 @media (max-width: 640px) {
   .player-controls-section {
     padding: 0.5rem;

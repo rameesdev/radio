@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import './SonoscapeVisualizerStyle.css';
 
 /**
@@ -28,8 +28,72 @@ export const SonoscapePlayer = ({
   const containerRef = useRef(null);
   const canvasRef = useRef(null);
   const vuCanvasRef = useRef(null);
-  const [isPureFullscreen, setIsPureFullscreen] = useState(false);
-  const isPureFullscreenRef = useRef(false);
+  const fullscreenButtonRef = useRef(null);
+  const [fullscreen, setFullscreen] = useState(null);
+
+  const toggleFullscreen = useCallback(async () => {
+    const container = containerRef.current;
+    if (!container) return;
+    const active = document.fullscreenElement || document.webkitFullscreenElement;
+    if (active === container) {
+      const exit = document.exitFullscreen || document.webkitExitFullscreen;
+      await exit?.call(document);
+      return;
+    }
+    if (fullscreen === 'viewport') {
+      setFullscreen(null);
+      return;
+    }
+    const request = container.requestFullscreen || container.webkitRequestFullscreen;
+    if (request) {
+      try {
+        await request.call(container);
+        return;
+      } catch {
+        // Some browsers expose the API but reject fullscreen for this element.
+      }
+    }
+    setFullscreen('viewport');
+  }, [fullscreen]);
+
+  useEffect(() => {
+    const syncFullscreen = () => {
+      const active = document.fullscreenElement || document.webkitFullscreenElement;
+      setFullscreen(current => active === containerRef.current ? 'native' : current === 'native' ? null : current);
+    };
+    document.addEventListener('fullscreenchange', syncFullscreen);
+    document.addEventListener('webkitfullscreenchange', syncFullscreen);
+    return () => {
+      document.removeEventListener('fullscreenchange', syncFullscreen);
+      document.removeEventListener('webkitfullscreenchange', syncFullscreen);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (fullscreen !== 'viewport') return;
+    const root = document.documentElement;
+    const x = window.scrollX;
+    const y = window.scrollY;
+    root.classList.add('sonoscope-viewport-open');
+    return () => {
+      root.classList.remove('sonoscope-viewport-open');
+      window.scrollTo(x, y);
+    };
+  }, [fullscreen]);
+
+  useEffect(() => {
+    const handleFullscreenKey = event => {
+      if (event.defaultPrevented || event.repeat || event.metaKey || event.ctrlKey || event.altKey ||
+          event.target.closest?.('input, textarea, select, [contenteditable="true"]')) return;
+      if (event.key.toLowerCase() === 'f' || (event.key === 'Escape' && fullscreen === 'viewport')) {
+        event.preventDefault();
+        toggleFullscreen().catch(console.warn);
+        fullscreenButtonRef.current?.focus({ preventScroll: true });
+      }
+    };
+    document.addEventListener('keydown', handleFullscreenKey);
+    return () => document.removeEventListener('keydown', handleFullscreenKey);
+  }, [fullscreen, toggleFullscreen]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -98,28 +162,16 @@ export const SonoscapePlayer = ({
     function hexB(h) { return parseInt(h.slice(5, 7), 16); }
 
     function resize() {
-      const r = mc.parentElement.getBoundingClientRect();
-      const isInFullscreen = !!document.fullscreenElement;
-      
-      if (isInFullscreen) {
-        // In fullscreen: high-quality square canvas 600x600
-        mc.width = 600;
-        mc.height = 600;
-        
-        // Position canvas in center of parent
-        mc.style.margin = 'auto';
-        mc.style.display = 'block';
-      } else {
-        // Normal mode: compact original layout
-        mc.width = r.width || 600;
-        mc.height = 260;
-        mc.style.margin = '';
-        mc.style.display = '';
+      const width = mc.clientWidth;
+      const height = mc.clientHeight;
+      const vuWidth = vc.clientWidth;
+      if (vuWidth && (vc.width !== vuWidth || vc.height !== vc.clientHeight)) {
+        vc.width = vuWidth;
+        vc.height = vc.clientHeight;
       }
-      
-      const vr = vc.parentElement.getBoundingClientRect();
-      vc.width = Math.max((vr.width || 580) - 28, 100);
-      vc.height = 22;
+      if (!width || !height || (mc.width === width && mc.height === height)) return;
+      mc.width = width;
+      mc.height = height;
       wfBuf = null;
       stars = Array.from({ length: 150 }, () => ({
         x: (Math.random() - 0.5) * mc.width,
@@ -134,8 +186,9 @@ export const SonoscapePlayer = ({
     const audio = audioRef.current;
     
     // We strictly attach the nodes to the DOM element so they survive React re-renders
-    if (!audio.audioCtx) {
-      audio.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!audio.audioCtx && AudioContext) {
+      audio.audioCtx = new AudioContext();
       audio.sourceNode = audio.audioCtx.createMediaElementSource(audio);
       
       const a = audio.audioCtx.createAnalyser();
@@ -152,12 +205,12 @@ export const SonoscapePlayer = ({
 
     const analyser = audio.analyserNode;
     const gainNode = audio.gainNode;
-    analyser.smoothingTimeConstant = smooth;
-    gainNode.gain.value = gain;
+    if (analyser) analyser.smoothingTimeConstant = smooth;
+    if (gainNode) gainNode.gain.value = gain;
 
     // Browsers suspend audio contexts until interaction. Ensure it wakes up when the HostPanel plays.
     const handlePlayResume = () => {
-      if (audio.audioCtx.state === 'suspended') {
+      if (audio.audioCtx?.state === 'suspended') {
         audio.audioCtx.resume();
       }
     };
@@ -548,49 +601,6 @@ export const SonoscapePlayer = ({
       });
     }
 
-    // Fullscreen change event listener - triggers canvas resize and UI hiding
-    const handleFullscreenChange = () => {
-      resize();
-      const isFullscreen = !!document.fullscreenElement;
-      if (isFullscreen) {
-        // In fullscreen - hide all UI except canvas
-        containerRef.current?.querySelectorAll('#topbar, #vu-row, #bpm-row, #theme-row, #mode-wrap, #ctrl-row, #botbar').forEach(el => {
-          el.style.display = 'none';
-          el.style.visibility = 'hidden';
-          el.style.height = '0';
-          el.style.flex = '0';
-        });
-        // Expand canvas to fill screen
-        const canvasWrap = containerRef.current?.querySelector('#canvas-wrap');
-        if (canvasWrap) {
-          canvasWrap.style.flex = '1';
-          canvasWrap.style.width = '100%';
-          canvasWrap.style.height = '100%';
-          canvasWrap.style.margin = '0';
-          canvasWrap.style.padding = '0';
-        }
-        setIsPureFullscreen(true);
-      } else {
-        // Exited fullscreen - restore UI
-        containerRef.current?.querySelectorAll('#topbar, #vu-row, #bpm-row, #theme-row, #mode-wrap, #ctrl-row, #botbar').forEach(el => {
-          el.style.display = '';
-          el.style.visibility = '';
-          el.style.height = '';
-          el.style.flex = '';
-        });
-        const canvasWrap = containerRef.current?.querySelector('#canvas-wrap');
-        if (canvasWrap) {
-          canvasWrap.style.flex = '';
-          canvasWrap.style.width = '';
-          canvasWrap.style.height = '';
-          canvasWrap.style.margin = '';
-          canvasWrap.style.padding = '';
-        }
-        setIsPureFullscreen(false);
-      }
-    };
-    document.addEventListener('fullscreenchange', handleFullscreenChange);
-
     function setupKnob(kId, dId, vId, min, max, dec, init, cb) {
       const k = containerRef.current?.querySelector(`#${kId}`); const d = containerRef.current?.querySelector(`#${dId}`); const v = containerRef.current?.querySelector(`#${vId}`);
       if (!k || !d || !v) return;
@@ -621,71 +631,29 @@ export const SonoscapePlayer = ({
     const handleKeyDown = async (e) => {
       if (e.key === 'ArrowRight') { const idx = (modes.indexOf(mode) + 1) % modes.length; setMode(modes[idx]); }
       else if (e.key === 'ArrowLeft') { const idx = (modes.indexOf(mode) - 1 + modes.length) % modes.length; setMode(modes[idx]); }
-      else if ((e.key === 'f' || e.key === 'F')) {
-        // F key: Enter pure fullscreen mode (no UI controls, ESC to exit)
-        try {
-          if (!document.fullscreenElement) {
-            setIsPureFullscreen(true);
-            await containerRef.current?.requestFullscreen?.().catch(() => {});
-          } else {
-            await document.exitFullscreen?.().catch(() => {});
-            setIsPureFullscreen(false);
-          }
-        } catch (err) {
-          console.warn('Fullscreen toggle failed:', err);
-        }
-      }
       else if (e.key === 's' || e.key === 'S') containerRef.current?.querySelector('#btn-shot')?.click();
-      else if (e.key === 'Escape' && document.fullscreenElement) {
-        document.exitFullscreen?.();
-        setIsPureFullscreen(false);
-      }
     };
-
-    const handleFullscreenButtonClick = async (e) => {
-      e.preventDefault();
-      try {
-        if (!document.fullscreenElement) {
-          setIsPureFullscreen(true);
-          await container?.requestFullscreen?.().catch(() => {});
-        } else {
-          await document.exitFullscreen?.().catch(() => {});
-          setIsPureFullscreen(false);
-        }
-      } catch (err) {
-        console.warn('Fullscreen toggle failed:', err);
-      }
-    };
-
-    // Setup fullscreen button click handler
-    const fsBtn = container?.querySelector('#btn-fullscreen');
-    if (fsBtn) fsBtn.addEventListener('click', handleFullscreenButtonClick);
 
     document.addEventListener('keydown', handleKeyDown);
     resize();
-    window.addEventListener('resize', resize);
+    const observer = new ResizeObserver(resize);
+    observer.observe(mc);
+    observer.observe(vc);
     
     // Start drawing
     draw();
 
     return () => {
-      const fsBtnCleanup = container?.querySelector('#btn-fullscreen');
-      if (fsBtnCleanup) fsBtnCleanup.removeEventListener('click', handleFullscreenButtonClick);
       document.removeEventListener('keydown', handleKeyDown);
-      document.removeEventListener('fullscreenchange', handleFullscreenChange);
-      window.removeEventListener('resize', resize);
+      observer.disconnect();
       audio.removeEventListener('play', handlePlayResume);
       if (animId) { cancelAnimationFrame(animId); animId = null; }
     };
   }, [audioRef, isPlaying, trackName]);
 
-  // Keep ref synchronized with state
-  useEffect(() => {
-    isPureFullscreenRef.current = isPureFullscreen;
-  }, [isPureFullscreen]);
-
+  const fullscreenLabel = fullscreen ? 'Exit fullscreen' : 'Enter fullscreen';
   return (
-    <div ref={containerRef} className={`sonoscope-container ${isPureFullscreen ? 'fullscreen' : ''}`}>
+    <div ref={containerRef} className={`sonoscope-container ${fullscreen ? 'sonoscope-fullscreen' : ''} ${fullscreen === 'viewport' ? 'sonoscope-viewport' : ''}`}>
       <div id="topbar">
         <div>
           <div className="brand">Sonoscope</div>
@@ -698,7 +666,9 @@ export const SonoscapePlayer = ({
           <div className="led" id="l-peak"></div><span className="led-lbl">PEAK</span>
           <div className="led" id="l-auto"></div><span className="led-lbl">AUTO</span>
         </div>
-        <button id="btn-fullscreen" title="Fullscreen (F)" className="fs-btn"><svg viewBox="0 0 24 24" width="16" height="16"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" fill="currentColor"/></svg></button>
+        <button ref={fullscreenButtonRef} type="button" aria-label={fullscreenLabel} title={fullscreenLabel} className="fs-btn" onClick={() => toggleFullscreen().catch(console.warn)}>
+          {fullscreen ? 'Exit fullscreen' : <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" fill="currentColor"/></svg>}
+        </button>
       </div>
 
       <div id="canvas-wrap">

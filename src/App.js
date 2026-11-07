@@ -103,7 +103,7 @@ function App() {
           {isConnected ? '🟢 Connected' : '🔴 Disconnected'}
         </span>
         {userRole && (
-          <button className="btn-logout" onClick={reset} style={{ marginLeft: '15px' }}>
+          <button className="btn-logout" onClick={reset}>
             🚪 Leave
           </button>
         )}

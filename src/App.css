@@ -99,6 +99,7 @@ body {
 }
 
 .btn-logout {
+  margin-left: 15px;
   background: linear-gradient(135deg, rgba(212, 165, 116, 0.15), rgba(212, 165, 116, 0.05));
   color: #d4a574;
   border: 2px solid #d4a574;
@@ -154,11 +155,28 @@ body {
 
 .main-content {
   flex: 1;
-  padding: 2rem;
+  padding: clamp(0.25rem, 3vw - 0.5rem, 2rem);
+  min-width: 0;
   position: relative;
   z-index: 1;
   display: flex;
   flex-direction: column;
+}
+
+@media (max-width: 480px) {
+  .status-bar {
+    flex-wrap: wrap;
+    gap: 0.4rem 0.65rem;
+    padding-inline: 0.65rem;
+  }
+
+  .status-bar .logo-text {
+    font-size: 1rem;
+  }
+
+  .status-bar .btn-logout {
+    margin-left: 0;
+  }
 }
 
 .entry-flow {
