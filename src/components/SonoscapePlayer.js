@@ -296,60 +296,49 @@ export const SonoscapePlayer = ({
       if (modeBtns) modeBtns.forEach(btn => btn.classList.toggle('active', btn.dataset.mode === m));
     }
 
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
-    let edgePhase = 0;
-    let edgeTimestamp = 0;
+    const edgeEvents = [
+      { floor: 0.34, rise: 0.09, rms: 0.018, duration: 180, strength: 0.82 }, // Bass
+      { floor: 0.06, rise: 0.025, rms: 0.06, duration: 140, strength: 0.59 }, // Loud attack
+      { floor: 0.44, rise: 0.12, rms: 0.018, duration: 85, strength: 0.35 }, // Treble
+    ].map(event => ({ ...event, baseline: 0, previous: 0, hitAt: -Infinity }));
+    const binHz = (audio.audioCtx?.sampleRate || 48000) / (analyser?.fftSize || 2048);
 
-    function drawEdgeLighting(width, height, hue, bass, energy, treble, timestamp, beat = 0) {
-      const inset = Math.max(8, Math.min(width, height) * 0.045);
-      if (width <= inset * 2 || height <= inset * 2) return;
-      const left = inset, right = width - inset, top = inset, bottom = height - inset;
-      const radius = Math.min(30, inset * 1.35, (right - left) / 2, (bottom - top) / 2);
-      const perimeter = 2 * (right - left + bottom - top - 4 * radius) + 2 * Math.PI * radius;
-      const elapsed = Math.min(50, timestamp - (edgeTimestamp || timestamp));
-      edgeTimestamp = timestamp;
-      if (!reducedMotion.matches) edgePhase = (edgePhase + elapsed * (0.045 + bass * 0.26)) % perimeter;
+    function bandPeak(freq, lowHz, highHz) {
+      let peak = 0;
+      const end = Math.min(freq.length, Math.floor(highHz / binHz) + 1);
+      for (let i = Math.ceil(lowHz / binHz); i < end; i++) peak = Math.max(peak, freq[i]);
+      return peak / 255;
+    }
 
+    function drawEdgeLighting(width, height, hue, freq, waveform, timestamp) {
+      let sum = 0;
+      for (const sample of waveform) sum += ((sample - 128) / 128) ** 2;
+      const rms = Math.sqrt(sum / waveform.length);
+      const levels = [bandPeak(freq, 40, 190), rms, bandPeak(freq, 2400, 9000)];
+      let brightness = 0;
+
+      edgeEvents.forEach((event, index) => {
+        const level = rms >= event.rms ? levels[index] : 0;
+        const onset = level - event.previous >= event.rise;
+        if (onset && level >= event.floor && level >= event.baseline + event.rise &&
+            timestamp - event.hitAt >= event.duration) {
+          event.hitAt = timestamp;
+        }
+        event.previous = level;
+        event.baseline += (level - event.baseline) * 0.12;
+        const fade = Math.max(0, 1 - (timestamp - event.hitAt) / event.duration);
+        brightness = Math.max(brightness, event.strength * fade ** 2);
+      });
+
+      if (!brightness || width < 5 || height < 5) return;
       ctx.save();
-      ctx.beginPath();
-      ctx.moveTo(left + radius, top);
-      ctx.arcTo(right, top, right, bottom, radius);
-      ctx.arcTo(right, bottom, left, bottom, radius);
-      ctx.arcTo(left, bottom, left, top, radius);
-      ctx.arcTo(left, top, right, top, radius);
-      ctx.closePath();
-      ctx.lineCap = 'round';
-      const colors = ctx.createLinearGradient(left, top, right, bottom);
-      colors.addColorStop(0, hsl(hue, 95, 61));
-      colors.addColorStop(0.45, hsl(hue + 58, 95, 64));
-      colors.addColorStop(1, hsl(hue + 145, 95, 60));
-      ctx.strokeStyle = colors;
-
-      // Layer a soft edge halo, a continuous outline and two counter-rotating patterns.
-      for (const [size, alpha] of [[2.4, 0.035], [1.5, 0.07], [0.9, 0.14]]) {
-        ctx.lineWidth = inset * size * (0.85 + bass * 0.25 + beat * 0.55);
-        ctx.globalAlpha = alpha * (0.55 + energy + beat * 0.8);
-        ctx.stroke();
-      }
-      ctx.lineWidth = 1.5 + energy * 2;
-      ctx.globalAlpha = 0.3 + energy * 0.35;
-      ctx.stroke();
-
-      const sweep = perimeter / 4;
-      const dash = sweep * (0.22 + bass * 0.18 + beat * 0.3);
-      ctx.setLineDash([dash, sweep - dash]);
-      ctx.lineDashOffset = -edgePhase;
-      ctx.lineWidth = 2 + bass * 2 + beat * 4;
-      ctx.globalAlpha = 0.72 + energy * 0.28;
-      ctx.stroke();
-
-      const spark = perimeter / 16;
-      ctx.setLineDash([spark * 0.12, spark * 0.88]);
-      ctx.lineDashOffset = edgePhase * 0.75;
-      ctx.strokeStyle = hsl(hue + 180, 85, 82);
-      ctx.lineWidth = 1 + treble * 2.5;
-      ctx.globalAlpha = 0.26 + treble * 0.7;
-      ctx.stroke();
+      ctx.strokeStyle = hsl(hue, 90, 65);
+      ctx.globalAlpha = brightness * 0.1;
+      ctx.lineWidth = 6;
+      ctx.strokeRect(1.25, 1.25, width - 2.5, height - 2.5);
+      ctx.globalAlpha = brightness;
+      ctx.lineWidth = 2.5;
+      ctx.strokeRect(1.25, 1.25, width - 2.5, height - 2.5);
       ctx.restore();
     }
 
@@ -359,9 +348,13 @@ export const SonoscapePlayer = ({
       const W = mc.width; const H = mc.height;
 
       if (!analyser || audio.paused || audio.src === '') {
-        ctx.fillStyle = mode === 'edge_lighting' ? '#060402' : 'rgba(6,4,2,0.15)';
+        ctx.fillStyle = mode === 'edge_lighting' ? '#000' : 'rgba(6,4,2,0.15)';
         ctx.fillRect(0, 0, W, H);
-        if (mode === 'edge_lighting') drawEdgeLighting(W, H, theme.h, 0, 0, 0, timestamp);
+        for (const event of edgeEvents) {
+          event.baseline = 0;
+          event.previous = 0;
+          event.hitAt = -Infinity;
+        }
         lastBeatTime = 0;
         previousBass = 0;
         bassBaseline = 0;
@@ -399,10 +392,9 @@ export const SonoscapePlayer = ({
 
       detectBeat(freq, timestamp);
       const sinceBeat = lastBeatTime ? timestamp - lastBeatTime : Infinity;
-      const beat = Math.exp(-sinceBeat / 125);
       container.querySelector('#l-beat')?.classList.toggle('on-amber', beatFlashRef.current && sinceBeat < 80);
       
-      if (beatFlashRef.current && flashAlpha > 0) {
+      if (mode !== 'edge_lighting' && beatFlashRef.current && flashAlpha > 0) {
         flash.style.background = theme.flash + flashAlpha + ')';
         flash.style.opacity = '1';
         flashAlpha = Math.max(0, flashAlpha - 0.025);
@@ -421,9 +413,13 @@ export const SonoscapePlayer = ({
         if (autoTimer > autoInterval / 16) { autoTimer = 0; const idx = (modes.indexOf(mode) + 1) % modes.length; setMode(modes[idx]); }
       }
 
-      if (shakeX || shakeY) { ctx.save(); ctx.translate(shakeX, shakeY); shakeX *= 0.7; shakeY *= 0.7; }
+      const shakeFrame = mode !== 'edge_lighting' && (shakeX || shakeY);
+      if (shakeFrame) { ctx.save(); ctx.translate(shakeX, shakeY); }
+      shakeX *= 0.7; shakeY *= 0.7;
 
-      if (trailsOn && mode !== 'waterfall' && mode !== 'pixel_matrix') {
+      if (mode === 'edge_lighting') {
+        ctx.fillStyle = '#000'; ctx.fillRect(0, 0, W, H);
+      } else if (trailsOn && mode !== 'waterfall' && mode !== 'pixel_matrix') {
         ctx.fillStyle = 'rgba(6,4,2,0.35)'; ctx.fillRect(0, 0, W, H);
       } else {
         ctx.fillStyle = '#060402'; ctx.fillRect(0, 0, W, H);
@@ -435,8 +431,7 @@ export const SonoscapePlayer = ({
 
       // VISUALIZATION RENDERERS
       if (mode === 'edge_lighting') {
-        const treble = freq[Math.floor(bufLen * 0.25)] / 255;
-        drawEdgeLighting(W, H, C, Math.min(1, bass * gain), energy, treble, timestamp, beat);
+        drawEdgeLighting(W, H, C, freq, time, timestamp);
       } else if (mode === 'bars') {
         const bars = 80; const bw = (W / bars) * 0.75;
         for (let i = 0; i < bars; i++) {
@@ -650,7 +645,7 @@ export const SonoscapePlayer = ({
         }
       }
 
-      if (shakeX || shakeY) ctx.restore();
+      if (shakeFrame) ctx.restore();
     }
 
     const controls = new AbortController();
