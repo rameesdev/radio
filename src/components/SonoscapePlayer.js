@@ -316,6 +316,7 @@ export const SonoscapePlayer = ({
       const rms = Math.sqrt(sum / waveform.length);
       const levels = [bandPeak(freq, 40, 190), rms, bandPeak(freq, 2400, 9000)];
       let brightness = 0;
+      let progress = 0;
 
       edgeEvents.forEach((event, index) => {
         const level = rms >= event.rms ? levels[index] : 0;
@@ -326,19 +327,42 @@ export const SonoscapePlayer = ({
         }
         event.previous = level;
         event.baseline += (level - event.baseline) * 0.12;
-        const fade = Math.max(0, 1 - (timestamp - event.hitAt) / event.duration);
-        brightness = Math.max(brightness, event.strength * fade ** 2);
+        const age = (timestamp - event.hitAt) / event.duration;
+        const fade = Math.max(0, 1 - Math.max(0, age - 0.3) / 0.7);
+        const intensity = event.strength * fade ** 2;
+        if (intensity > brightness) {
+          brightness = intensity;
+          progress = age;
+        }
       });
 
       if (!brightness || width < 5 || height < 5) return;
+      const inset = 1.25;
+      const center = width / 2;
+      const bottom = height - inset;
+      const halfPerimeter = width + height - 4 * inset;
+      const front = halfPerimeter * Math.min(1, 0.025 + progress / 0.65);
+      const tail = halfPerimeter * Math.max(0, (progress - 0.32) / 0.68);
+
       ctx.save();
+      ctx.beginPath();
+      for (const side of [inset, width - inset]) {
+        ctx.moveTo(center, bottom);
+        ctx.lineTo(side, bottom);
+        ctx.lineTo(side, inset);
+        ctx.lineTo(center, inset);
+      }
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.setLineDash([front - tail, halfPerimeter]);
+      ctx.lineDashOffset = -tail;
       ctx.strokeStyle = hsl(hue, 90, 65);
       ctx.globalAlpha = brightness * 0.1;
       ctx.lineWidth = 6;
-      ctx.strokeRect(1.25, 1.25, width - 2.5, height - 2.5);
+      ctx.stroke();
       ctx.globalAlpha = brightness;
       ctx.lineWidth = 2.5;
-      ctx.strokeRect(1.25, 1.25, width - 2.5, height - 2.5);
+      ctx.stroke();
       ctx.restore();
     }
 
