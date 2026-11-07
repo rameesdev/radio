@@ -105,7 +105,7 @@ export const SonoscapePlayer = ({
     const vx = vc.getContext('2d', { alpha: false });
     const flash = container.querySelector('#flash-overlay');
 
-    let mode = 'bars';
+    let mode = 'edge_lighting';
     let gain = 1.5;
     let smooth = 0.8;
     let zoom = 1.0;
@@ -146,9 +146,9 @@ export const SonoscapePlayer = ({
     };
     let theme = THEMES.amber;
 
-    const modes = ['bars', 'mirror_bars', 'waterfall', 'bars3d', 'wave', 'mirror_wave', 'tunnel', 'lissajous', 'radial', 'kaleidoscope', 'mandala', 'polygon', 'dna', 'particles', 'starfield', 'aurora', 'blackhole', 'vinyl', 'pixel_matrix'];
+    const modes = ['edge_lighting', 'bars', 'mirror_bars', 'waterfall', 'bars3d', 'wave', 'mirror_wave', 'tunnel', 'lissajous', 'radial', 'kaleidoscope', 'mandala', 'polygon', 'dna', 'particles', 'starfield', 'aurora', 'blackhole', 'vinyl', 'pixel_matrix'];
     const modeNames = {
-      bars: 'BARS', mirror_bars: 'MIRROR BARS', waterfall: 'WATERFALL', bars3d: '3D BARS',
+      edge_lighting: 'EDGE LIGHTING', bars: 'BARS', mirror_bars: 'MIRROR BARS', waterfall: 'WATERFALL', bars3d: '3D BARS',
       wave: 'WAVEFORM', mirror_wave: 'MIRROR WAVE', tunnel: 'TUNNEL', lissajous: 'LISSAJOUS',
       radial: 'RADIAL', kaleidoscope: 'KALEIDOSCOPE', mandala: 'MANDALA', polygon: 'POLYGON',
       dna: 'DNA HELIX', particles: 'PARTICLES', starfield: 'STAR FIELD', aurora: 'AURORA',
@@ -284,13 +284,72 @@ export const SonoscapePlayer = ({
       if (modeBtns) modeBtns.forEach(btn => btn.classList.toggle('active', btn.dataset.mode === m));
     }
 
-    function draw() {
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let edgePhase = 0;
+    let edgeTimestamp = 0;
+
+    function drawEdgeLighting(width, height, hue, bass, energy, treble, timestamp) {
+      const inset = Math.max(8, Math.min(width, height) * 0.045);
+      if (width <= inset * 2 || height <= inset * 2) return;
+      const left = inset, right = width - inset, top = inset, bottom = height - inset;
+      const radius = Math.min(30, inset * 1.35, (right - left) / 2, (bottom - top) / 2);
+      const perimeter = 2 * (right - left + bottom - top - 4 * radius) + 2 * Math.PI * radius;
+      const elapsed = Math.min(50, timestamp - (edgeTimestamp || timestamp));
+      edgeTimestamp = timestamp;
+      if (!reducedMotion.matches) edgePhase = (edgePhase + elapsed * (0.045 + bass * 0.26)) % perimeter;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.moveTo(left + radius, top);
+      ctx.arcTo(right, top, right, bottom, radius);
+      ctx.arcTo(right, bottom, left, bottom, radius);
+      ctx.arcTo(left, bottom, left, top, radius);
+      ctx.arcTo(left, top, right, top, radius);
+      ctx.closePath();
+      ctx.lineCap = 'round';
+      const colors = ctx.createLinearGradient(left, top, right, bottom);
+      colors.addColorStop(0, hsl(hue, 95, 61));
+      colors.addColorStop(0.45, hsl(hue + 58, 95, 64));
+      colors.addColorStop(1, hsl(hue + 145, 95, 60));
+      ctx.strokeStyle = colors;
+
+      // Layer a soft edge halo, a continuous outline and two counter-rotating patterns.
+      for (const [size, alpha] of [[2.4, 0.035], [1.5, 0.07], [0.9, 0.14]]) {
+        ctx.lineWidth = inset * size * (0.85 + bass * 0.4);
+        ctx.globalAlpha = alpha * (0.55 + energy);
+        ctx.stroke();
+      }
+      ctx.lineWidth = 1.5 + energy * 2;
+      ctx.globalAlpha = 0.3 + energy * 0.35;
+      ctx.stroke();
+
+      const sweep = perimeter / 4;
+      const dash = sweep * (0.22 + bass * 0.43);
+      ctx.setLineDash([dash, sweep - dash]);
+      ctx.lineDashOffset = -edgePhase;
+      ctx.lineWidth = 2 + bass * 4;
+      ctx.globalAlpha = 0.72 + energy * 0.28;
+      ctx.stroke();
+
+      const spark = perimeter / 16;
+      ctx.setLineDash([spark * 0.12, spark * 0.88]);
+      ctx.lineDashOffset = edgePhase * 0.75;
+      ctx.strokeStyle = hsl(hue + 180, 85, 82);
+      ctx.lineWidth = 1 + treble * 2.5;
+      ctx.globalAlpha = 0.26 + treble * 0.7;
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    function draw(timestamp = performance.now()) {
       animId = requestAnimationFrame(draw); 
       
       const W = mc.width; const H = mc.height;
 
       if (!analyser || audio.paused || audio.src === '') {
-        ctx.fillStyle = 'rgba(6,4,2,0.15)'; ctx.fillRect(0, 0, W, H);
+        ctx.fillStyle = mode === 'edge_lighting' ? '#060402' : 'rgba(6,4,2,0.15)';
+        ctx.fillRect(0, 0, W, H);
+        if (mode === 'edge_lighting') drawEdgeLighting(W, H, theme.h, 0, 0, 0, timestamp);
         drawVu(0);
         const sigLed = containerRef.current?.querySelector('#l-sig');
         if (sigLed) sigLed.className = 'led';
@@ -347,12 +406,15 @@ export const SonoscapePlayer = ({
         ctx.fillStyle = '#060402'; ctx.fillRect(0, 0, W, H);
       }
 
-      if (mode !== 'pixel_matrix' && mode !== 'aurora') drawGrid(W, H);
+      if (mode !== 'pixel_matrix' && mode !== 'aurora' && mode !== 'edge_lighting') drawGrid(W, H);
 
       const C = hueCycle ? tH : theme.h;
 
       // VISUALIZATION RENDERERS
-      if (mode === 'bars') {
+      if (mode === 'edge_lighting') {
+        const treble = freq[Math.floor(bufLen * 0.25)] / 255;
+        drawEdgeLighting(W, H, C, Math.min(1, bass * gain), energy, treble, timestamp);
+      } else if (mode === 'bars') {
         const bars = 80; const bw = (W / bars) * 0.75;
         for (let i = 0; i < bars; i++) {
           const v = Math.min((freq[Math.floor((i / bars) * zBins)] / 255) * gain, 1.3);
@@ -568,6 +630,8 @@ export const SonoscapePlayer = ({
       if (shakeX || shakeY) ctx.restore();
     }
 
+    const controls = new AbortController();
+    const { signal } = controls;
     // UI Listeners
     const themeDots = containerRef.current?.querySelectorAll('.theme-dot');
     if (themeDots) {
@@ -576,21 +640,21 @@ export const SonoscapePlayer = ({
           themeDots.forEach(x => x.classList.remove('active'));
           d.classList.add('active');
           theme = THEMES[d.dataset.theme]; wfBuf = null;
-        });
+        }, { signal });
       });
     }
 
     const modeBtns = containerRef.current?.querySelectorAll('.mbtn');
     if (modeBtns) {
-      modeBtns.forEach(btn => btn.addEventListener('click', () => setMode(btn.dataset.mode)));
+      modeBtns.forEach(btn => btn.addEventListener('click', () => setMode(btn.dataset.mode), { signal }));
     }
 
     const autoBtn = containerRef.current?.querySelector('#btn-auto');
-    if (autoBtn) autoBtn.addEventListener('click', function() { autoOn = !autoOn; this.classList.toggle('active', autoOn); const autoLed = containerRef.current?.querySelector('#l-auto'); if (autoLed) autoLed.className = 'led' + (autoOn ? ' on-amber' : ''); });
+    if (autoBtn) autoBtn.addEventListener('click', function() { autoOn = !autoOn; this.classList.toggle('active', autoOn); const autoLed = containerRef.current?.querySelector('#l-auto'); if (autoLed) autoLed.className = 'led' + (autoOn ? ' on-amber' : ''); }, { signal });
     const shakeBtn = containerRef.current?.querySelector('#btn-shake');
-    if (shakeBtn) shakeBtn.addEventListener('click', function() { shakeOn = !shakeOn; this.classList.toggle('active', shakeOn); });
+    if (shakeBtn) shakeBtn.addEventListener('click', function() { shakeOn = !shakeOn; this.classList.toggle('active', shakeOn); }, { signal });
     const trailsBtn = containerRef.current?.querySelector('#btn-trails');
-    if (trailsBtn) trailsBtn.addEventListener('click', function() { trailsOn = !trailsOn; this.classList.toggle('active', trailsOn); });
+    if (trailsBtn) trailsBtn.addEventListener('click', function() { trailsOn = !trailsOn; this.classList.toggle('active', trailsOn); }, { signal });
     const hueBtn = containerRef.current?.querySelector('#btn-hue');
     if (hueBtn) hueBtn.addEventListener('click', function() { hueCycle = !hueCycle; this.classList.toggle('active', hueCycle); });
     
@@ -598,7 +662,7 @@ export const SonoscapePlayer = ({
     if (shotBtn) {
       shotBtn.addEventListener('click', () => {
         const a = document.createElement('a'); a.download = 'sonoscope.png'; a.href = mc.toDataURL('image/png'); a.click();
-      });
+      }, { signal });
     }
 
     function setupKnob(kId, dId, vId, min, max, dec, init, cb) {
@@ -611,11 +675,11 @@ export const SonoscapePlayer = ({
         v.textContent = val.toFixed(dec); cb(val);
       }
       set(init);
-      k.addEventListener('mousedown', (e) => { active = true; sy = e.clientY; sv = val; e.preventDefault(); });
-      k.addEventListener('touchstart', (e) => { active = true; sy = e.touches[0].clientY; sv = val; }, { passive: true });
-      document.addEventListener('mousemove', (e) => { if (active) set(sv + (sy - e.clientY) * ((max - min) / 80)); });
-      document.addEventListener('touchmove', (e) => { if (active) set(sv + (sy - e.touches[0].clientY) * ((max - min) / 80)); }, { passive: true });
-      document.addEventListener('mouseup', () => (active = false)); document.addEventListener('touchend', () => (active = false));
+      k.addEventListener('mousedown', (e) => { active = true; sy = e.clientY; sv = val; e.preventDefault(); }, { signal });
+      k.addEventListener('touchstart', (e) => { active = true; sy = e.touches[0].clientY; sv = val; }, { passive: true, signal });
+      document.addEventListener('mousemove', (e) => { if (active) set(sv + (sy - e.clientY) * ((max - min) / 80)); }, { signal });
+      document.addEventListener('touchmove', (e) => { if (active) set(sv + (sy - e.touches[0].clientY) * ((max - min) / 80)); }, { passive: true, signal });
+      document.addEventListener('mouseup', () => (active = false), { signal }); document.addEventListener('touchend', () => (active = false), { signal });
     }
 
     setupKnob('k-gain', 'kd-gain', 'kv-gain', 0.5, 4, 1, 1.5, (v) => { 
@@ -634,7 +698,7 @@ export const SonoscapePlayer = ({
       else if (e.key === 's' || e.key === 'S') containerRef.current?.querySelector('#btn-shot')?.click();
     };
 
-    document.addEventListener('keydown', handleKeyDown);
+    document.addEventListener('keydown', handleKeyDown, { signal });
     resize();
     const observer = new ResizeObserver(resize);
     observer.observe(mc);
@@ -644,12 +708,12 @@ export const SonoscapePlayer = ({
     draw();
 
     return () => {
-      document.removeEventListener('keydown', handleKeyDown);
+      controls.abort();
       observer.disconnect();
       audio.removeEventListener('play', handlePlayResume);
       if (animId) { cancelAnimationFrame(animId); animId = null; }
     };
-  }, [audioRef, isPlaying, trackName]);
+  }, [audioRef]);
 
   const fullscreenLabel = fullscreen ? 'Exit fullscreen' : 'Enter fullscreen';
   return (
@@ -657,7 +721,7 @@ export const SonoscapePlayer = ({
       <div id="topbar">
         <div>
           <div className="brand">Sonoscope</div>
-          <div className="model-tag">AV-2077 · DOPAMINE EDITION · 19 MODES</div>
+          <div className="model-tag">AV-2077 · DOPAMINE EDITION · 20 MODES</div>
         </div>
         <div className="leds">
           <div className="led on-amber" id="l-pwr"></div><span className="led-lbl">PWR</span>
@@ -703,7 +767,8 @@ export const SonoscapePlayer = ({
 
       <div id="mode-wrap">
         <div id="mode-btns">
-          <button className="mbtn active" data-mode="bars">BARS</button>
+          <button className="mbtn active" data-mode="edge_lighting">EDGE LIGHTING</button>
+          <button className="mbtn" data-mode="bars">BARS</button>
           <button className="mbtn" data-mode="mirror_bars">MIRROR</button>
           <button className="mbtn" data-mode="waterfall">WATERFALL</button>
           <button className="mbtn" data-mode="bars3d">3D BARS</button>
@@ -867,7 +932,7 @@ export const SonoscapePlayer = ({
 
       <div id="botbar">
         <div id="track-name" className={trackName ? 'on' : ''}>{trackName || 'WAITING FOR SIGNAL...'}</div>
-        <div id="mode-name">BARS</div>
+        <div id="mode-name">EDGE LIGHTING</div>
         <div id="keys-hint">← → MODE · S SNAP · F FULLSCREEN · ESC EXIT</div>
       </div>
     </div>
