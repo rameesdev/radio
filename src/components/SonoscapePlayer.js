@@ -297,9 +297,9 @@ export const SonoscapePlayer = ({
     }
 
     const edgeEvents = [
-      { floor: 0.34, rise: 0.09, rms: 0.018, duration: 180, strength: 0.82 }, // Bass
-      { floor: 0.06, rise: 0.025, rms: 0.06, duration: 140, strength: 0.59 }, // Loud attack
-      { floor: 0.44, rise: 0.12, rms: 0.018, duration: 85, strength: 0.35 }, // Treble
+      { floor: 0.34, rise: 0.09, rms: 0.018, duration: 320, strength: 0.82 }, // Bass
+      { floor: 0.06, rise: 0.025, rms: 0.06, duration: 260, strength: 0.59 }, // Loud attack
+      { floor: 0.44, rise: 0.12, rms: 0.018, duration: 150, strength: 0.35 }, // Treble
     ].map(event => ({ ...event, baseline: 0, previous: 0, hitAt: -Infinity }));
     const binHz = (audio.audioCtx?.sampleRate || 48000) / (analyser?.fftSize || 2048);
 
@@ -336,13 +336,16 @@ export const SonoscapePlayer = ({
         }
       });
 
-      if (!brightness || width < 5 || height < 5) return;
-      const inset = 1.25;
+      if (!brightness || width < 10 || height < 10) return;
+      const inset = 2.25;
       const center = width / 2;
       const bottom = height - inset;
       const halfPerimeter = width + height - 4 * inset;
-      const front = halfPerimeter * Math.min(1, 0.025 + progress / 0.65);
-      const tail = halfPerimeter * Math.max(0, (progress - 0.32) / 0.68);
+      const frontTime = Math.min(1, progress / 0.74);
+      const tailTime = Math.max(0, (progress - 0.4) / 0.6);
+      const ease = t => t * t * (3 - 2 * t);
+      const front = halfPerimeter * (0.025 + 0.975 * ease(frontTime));
+      const tail = halfPerimeter * ease(tailTime);
 
       ctx.save();
       ctx.beginPath();
@@ -356,12 +359,18 @@ export const SonoscapePlayer = ({
       ctx.lineCap = 'round';
       ctx.setLineDash([front - tail, halfPerimeter]);
       ctx.lineDashOffset = -tail;
-      ctx.strokeStyle = hsl(hue, 90, 65);
-      ctx.globalAlpha = brightness * 0.1;
-      ctx.lineWidth = 6;
+      const color = ctx.createLinearGradient(0, height, width, 0);
+      color.addColorStop(0, hsl(hue + 145, 93, 66));
+      color.addColorStop(0.32, hsl(hue + 205, 92, 70));
+      color.addColorStop(0.56, hsl(hue + 285, 92, 67));
+      color.addColorStop(0.78, hsl(hue + 345, 94, 65));
+      color.addColorStop(1, hsl(hue + 45, 94, 64));
+      ctx.strokeStyle = color;
+      ctx.globalAlpha = brightness * 0.12;
+      ctx.lineWidth = 10;
       ctx.stroke();
       ctx.globalAlpha = brightness;
-      ctx.lineWidth = 2.5;
+      ctx.lineWidth = 4.5;
       ctx.stroke();
       ctx.restore();
     }
