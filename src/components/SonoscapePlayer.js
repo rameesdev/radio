@@ -297,9 +297,9 @@ export const SonoscapePlayer = ({
     }
 
     const edgeEvents = [
-      { floor: 0.34, rise: 0.09, rms: 0.018, duration: 320, strength: 0.82 }, // Bass
-      { floor: 0.06, rise: 0.025, rms: 0.06, duration: 260, strength: 0.59 }, // Loud attack
-      { floor: 0.44, rise: 0.12, rms: 0.018, duration: 150, strength: 0.35 }, // Treble
+      { floor: 0.34, rise: 0.09, rms: 0.018, duration: 920, strength: 0.9 }, // Bass
+      { floor: 0.06, rise: 0.025, rms: 0.06, duration: 780, strength: 0.67 }, // Loud attack
+      { floor: 0.44, rise: 0.12, rms: 0.018, duration: 480, strength: 0.4 }, // Treble
     ].map(event => ({ ...event, baseline: 0, previous: 0, hitAt: -Infinity }));
     const binHz = (audio.audioCtx?.sampleRate || 48000) / (analyser?.fftSize || 2048);
 
@@ -328,7 +328,7 @@ export const SonoscapePlayer = ({
         event.previous = level;
         event.baseline += (level - event.baseline) * 0.12;
         const age = (timestamp - event.hitAt) / event.duration;
-        const fade = Math.max(0, 1 - Math.max(0, age - 0.3) / 0.7);
+        const fade = Math.max(0, 1 - Math.max(0, age - 0.58) / 0.42);
         const intensity = event.strength * fade ** 2;
         if (intensity > brightness) {
           brightness = intensity;
@@ -336,42 +336,48 @@ export const SonoscapePlayer = ({
         }
       });
 
-      if (!brightness || width < 10 || height < 10) return;
-      const inset = 2.25;
+      if (!brightness || width < 24 || height < 24) return;
+      const inset = 5;
       const center = width / 2;
       const bottom = height - inset;
-      const halfPerimeter = width + height - 4 * inset;
-      const frontTime = Math.min(1, progress / 0.74);
-      const tailTime = Math.max(0, (progress - 0.4) / 0.6);
-      const ease = t => t * t * (3 - 2 * t);
-      const front = halfPerimeter * (0.025 + 0.975 * ease(frontTime));
-      const tail = halfPerimeter * ease(tailTime);
+      const radius = Math.min(32, (width - 2 * inset) / 4, (height - 2 * inset) / 2);
+      const halfPerimeter = width + height - 4 * inset - (4 - Math.PI) * radius;
+      const travel = Math.min(1, progress / 0.78);
+      const front = halfPerimeter * (0.025 + 0.975 * travel * travel * (3 - 2 * travel));
 
       ctx.save();
       ctx.beginPath();
       for (const side of [inset, width - inset]) {
         ctx.moveTo(center, bottom);
-        ctx.lineTo(side, bottom);
-        ctx.lineTo(side, inset);
+        ctx.arcTo(side, bottom, side, inset, radius);
+        ctx.arcTo(side, inset, center, inset, radius);
         ctx.lineTo(center, inset);
       }
-      ctx.lineJoin = 'round';
       ctx.lineCap = 'round';
-      ctx.setLineDash([front - tail, halfPerimeter]);
-      ctx.lineDashOffset = -tail;
-      const color = ctx.createLinearGradient(0, height, width, 0);
-      color.addColorStop(0, hsl(hue + 145, 93, 66));
-      color.addColorStop(0.32, hsl(hue + 205, 92, 70));
-      color.addColorStop(0.56, hsl(hue + 285, 92, 67));
-      color.addColorStop(0.78, hsl(hue + 345, 94, 65));
-      color.addColorStop(1, hsl(hue + 45, 94, 64));
+      const shift = hue - THEMES.amber.h;
+      const color = ctx.createLinearGradient(0, inset, 0, bottom);
+      color.addColorStop(0, hsl(188 + shift, 100, 59));
+      color.addColorStop(0.32, hsl(214 + shift, 100, 65));
+      color.addColorStop(0.65, hsl(265 + shift, 96, 68));
+      color.addColorStop(1, hsl(329 + shift, 100, 63));
       ctx.strokeStyle = color;
-      ctx.globalAlpha = brightness * 0.12;
-      ctx.lineWidth = 10;
-      ctx.stroke();
-      ctx.globalAlpha = brightness;
-      ctx.lineWidth = 4.5;
-      ctx.stroke();
+
+      // A dim wake follows the brighter moving section and its rounded tip.
+      function strokeTrail(length, width, opacity) {
+        const start = Math.max(0, front - halfPerimeter * length);
+        ctx.setLineDash([front - start, halfPerimeter]);
+        ctx.lineDashOffset = -start;
+        ctx.lineWidth = width;
+        ctx.globalAlpha = brightness * opacity;
+        ctx.stroke();
+      }
+
+      strokeTrail(0.65, 25, 0.035);
+      strokeTrail(0.52, 14, 0.10);
+      strokeTrail(0.64, 4, 0.17);
+      strokeTrail(0.30, 9, 0.24);
+      strokeTrail(0.30, 6, 0.92);
+      strokeTrail(0.07, 3, 1);
       ctx.restore();
     }
 
