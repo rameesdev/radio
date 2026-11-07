@@ -296,11 +296,14 @@ export const SonoscapePlayer = ({
       if (modeBtns) modeBtns.forEach(btn => btn.classList.toggle('active', btn.dataset.mode === m));
     }
 
-    const edgeEvents = [
-      { floor: 0.34, rise: 0.09, rms: 0.018, duration: 920, strength: 0.9 }, // Bass
-      { floor: 0.06, rise: 0.025, rms: 0.06, duration: 780, strength: 0.67 }, // Loud attack
-      { floor: 0.44, rise: 0.12, rms: 0.018, duration: 480, strength: 0.4 }, // Treble
-    ].map(event => ({ ...event, baseline: 0, previous: 0, hitAt: -Infinity }));
+    const edgeBands = [
+      { floor: 0.022, rise: 0.004, duration: 920, strength: 0.92 }, // Volume
+      { floor: 0.29, rise: 0.05, duration: 850, strength: 0.81 }, // Bass
+      { floor: 0.32, rise: 0.06, duration: 740, strength: 0.72 }, // Mids
+      { floor: 0.37, rise: 0.07, duration: 610, strength: 0.64 }, // Treble
+    ].map(band => ({ ...band, baseline: 0, previous: 0 }));
+    const edgePulses = [];
+    let lastEdgePulse = -Infinity;
     const binHz = (audio.audioCtx?.sampleRate || 48000) / (analyser?.fftSize || 2048);
 
     function bandPeak(freq, lowHz, highHz) {
@@ -314,37 +317,40 @@ export const SonoscapePlayer = ({
       let sum = 0;
       for (const sample of waveform) sum += ((sample - 128) / 128) ** 2;
       const rms = Math.sqrt(sum / waveform.length);
-      const levels = [bandPeak(freq, 40, 190), rms, bandPeak(freq, 2400, 9000)];
-      let brightness = 0;
-      let progress = 0;
+      const levels = [rms, bandPeak(freq, 40, 190), bandPeak(freq, 190, 2400), bandPeak(freq, 2400, 9000)];
+      let trigger;
 
-      edgeEvents.forEach((event, index) => {
-        const level = rms >= event.rms ? levels[index] : 0;
-        const onset = level - event.previous >= event.rise;
-        if (onset && level >= event.floor && level >= event.baseline + event.rise &&
-            timestamp - event.hitAt >= event.duration) {
-          event.hitAt = timestamp;
+      edgeBands.forEach((band, index) => {
+        const level = rms >= 0.014 ? levels[index] : 0;
+        const rise = Math.max(band.rise, band.baseline * 0.09);
+        if (!trigger && level >= band.floor && level - band.previous >= rise &&
+            level - band.baseline >= rise) {
+          trigger = band;
         }
-        event.previous = level;
-        event.baseline += (level - event.baseline) * 0.12;
-        const age = (timestamp - event.hitAt) / event.duration;
-        const fade = Math.max(0, 1 - Math.max(0, age - 0.58) / 0.42);
-        const intensity = event.strength * fade ** 2;
-        if (intensity > brightness) {
-          brightness = intensity;
-          progress = age;
-        }
+        band.previous = level;
+        band.baseline += (level - band.baseline) * 0.12;
       });
 
-      if (!brightness || width < 24 || height < 24) return;
+      for (let index = edgePulses.length - 1; index >= 0; index--) {
+        const pulse = edgePulses[index];
+        if (timestamp - pulse.started >= pulse.duration) edgePulses.splice(index, 1);
+      }
+      if (trigger && timestamp - lastEdgePulse >= 95) {
+        if (edgePulses.length === 6) edgePulses.shift();
+        edgePulses.push({
+          started: timestamp,
+          duration: trigger.duration,
+          strength: trigger.strength * Math.min(1, 0.48 + rms * 6),
+        });
+        lastEdgePulse = timestamp;
+      }
+
+      if (!edgePulses.length || width < 24 || height < 24) return;
       const inset = 5;
       const center = width / 2;
       const bottom = height - inset;
       const radius = Math.min(32, (width - 2 * inset) / 4, (height - 2 * inset) / 2);
       const halfPerimeter = width + height - 4 * inset - (4 - Math.PI) * radius;
-      const travel = Math.min(1, progress / 0.78);
-      const front = halfPerimeter * (0.025 + 0.975 * travel * travel * (3 - 2 * travel));
-
       ctx.save();
       ctx.beginPath();
       for (const side of [inset, width - inset]) {
@@ -362,22 +368,30 @@ export const SonoscapePlayer = ({
       color.addColorStop(1, hsl(329 + shift, 100, 63));
       ctx.strokeStyle = color;
 
-      // A dim wake follows the brighter moving section and its rounded tip.
-      function strokeTrail(length, width, opacity) {
-        const start = Math.max(0, front - halfPerimeter * length);
-        ctx.setLineDash([front - start, halfPerimeter]);
-        ctx.lineDashOffset = -start;
-        ctx.lineWidth = width;
-        ctx.globalAlpha = brightness * opacity;
-        ctx.stroke();
-      }
+      for (const pulse of edgePulses) {
+        const progress = (timestamp - pulse.started) / pulse.duration;
+        const fade = 1 - Math.max(0, progress - 0.58) / 0.42;
+        const brightness = pulse.strength * fade ** 2;
+        const travel = Math.min(1, progress / 0.78);
+        const front = halfPerimeter * (0.025 + 0.975 * travel * travel * (3 - 2 * travel));
 
-      strokeTrail(0.65, 25, 0.035);
-      strokeTrail(0.52, 14, 0.10);
-      strokeTrail(0.64, 4, 0.17);
-      strokeTrail(0.30, 9, 0.24);
-      strokeTrail(0.30, 6, 0.92);
-      strokeTrail(0.07, 3, 1);
+        // A dim wake follows each brighter moving section and its rounded tip.
+        const strokeTrail = (length, width, opacity) => {
+          const start = Math.max(0, front - halfPerimeter * length);
+          ctx.setLineDash([front - start, halfPerimeter]);
+          ctx.lineDashOffset = -start;
+          ctx.lineWidth = width;
+          ctx.globalAlpha = brightness * opacity;
+          ctx.stroke();
+        };
+
+        strokeTrail(0.65, 25, 0.035);
+        strokeTrail(0.52, 14, 0.10);
+        strokeTrail(0.64, 4, 0.17);
+        strokeTrail(0.30, 9, 0.24);
+        strokeTrail(0.30, 6, 0.92);
+        strokeTrail(0.07, 3, 1);
+      }
       ctx.restore();
     }
 
@@ -389,11 +403,12 @@ export const SonoscapePlayer = ({
       if (!analyser || audio.paused || audio.src === '') {
         ctx.fillStyle = mode === 'edge_lighting' ? '#000' : 'rgba(6,4,2,0.15)';
         ctx.fillRect(0, 0, W, H);
-        for (const event of edgeEvents) {
-          event.baseline = 0;
-          event.previous = 0;
-          event.hitAt = -Infinity;
+        for (const band of edgeBands) {
+          band.baseline = 0;
+          band.previous = 0;
         }
+        edgePulses.length = 0;
+        lastEdgePulse = -Infinity;
         lastBeatTime = 0;
         previousBass = 0;
         bassBaseline = 0;
