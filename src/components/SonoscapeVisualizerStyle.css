@@ -526,8 +526,7 @@
   animation: none;
 }
 
-.sonoscope-fullscreen > :not(#canvas-wrap):not(#topbar),
-.sonoscope-fullscreen #topbar > :not(.fs-btn) {
+.sonoscope-fullscreen > :not(#canvas-wrap) {
   display: none;
 }
 
@@ -538,22 +537,14 @@
   border-radius: 0;
 }
 
-.sonoscope-fullscreen #topbar {
-  position: absolute;
-  top: max(8px, env(safe-area-inset-top));
-  right: max(8px, env(safe-area-inset-right));
-  z-index: 1;
-  padding: 0;
-}
-
 .sonoscope-container #topbar .fs-btn {
   min-width: 44px;
   min-height: 44px;
   flex-shrink: 0;
 }
 
-.sonoscope-fullscreen #topbar .fs-btn {
-  padding-inline: 12px;
+.sonoscope-fullscreen #main-canvas {
+  cursor: zoom-out;
 }
 
 /* Responsive adjustments - Mobile First */

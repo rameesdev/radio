@@ -30,6 +30,13 @@ export const SonoscapePlayer = ({
   const vuCanvasRef = useRef(null);
   const fullscreenButtonRef = useRef(null);
   const [fullscreen, setFullscreen] = useState(null);
+  const [beatFlash, setBeatFlash] = useState(false);
+  const beatFlashRef = useRef(false);
+
+  function toggleBeatFlash() {
+    beatFlashRef.current = !beatFlashRef.current;
+    setBeatFlash(beatFlashRef.current);
+  }
 
   const toggleFullscreen = useCallback(async () => {
     const container = containerRef.current;
@@ -56,6 +63,10 @@ export const SonoscapePlayer = ({
     setFullscreen('viewport');
   }, [fullscreen]);
 
+  const exitFullscreen = () => toggleFullscreen().then(() => {
+    fullscreenButtonRef.current?.focus({ preventScroll: true });
+  }).catch(console.warn);
+
   useEffect(() => {
     const syncFullscreen = () => {
       const active = document.fullscreenElement || document.webkitFullscreenElement;
@@ -68,6 +79,10 @@ export const SonoscapePlayer = ({
       document.removeEventListener('webkitfullscreenchange', syncFullscreen);
     };
   }, []);
+
+  useEffect(() => {
+    if (fullscreen) canvasRef.current?.focus({ preventScroll: true });
+  }, [fullscreen]);
 
   useEffect(() => {
     if (fullscreen !== 'viewport') return;
@@ -132,7 +147,8 @@ export const SonoscapePlayer = ({
     let energySmooth = 0;
     let bpmHistory = [];
     let lastBeatTime = 0;
-    let beatCooldown = 0;
+    let bassBaseline = 0;
+    let previousBass = 0;
     let detectedBpm = 0;
 
     const THEMES = {
@@ -248,33 +264,29 @@ export const SonoscapePlayer = ({
       for (let y = 0; y < H; y += H / 5) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
     }
 
-    function detectBeat(freq, avg) {
-      beatCooldown = Math.max(0, beatCooldown - 1);
-      const bass = freq[2] / 255 + freq[3] / 255 + freq[4] / 255;
-      if (bass > 1.8 * gain && beatCooldown === 0 && avg > 0.1) {
-        const now = performance.now();
-        if (lastBeatTime) {
-          const interval = now - lastBeatTime;
-          if (interval > 250 && interval < 2000) {
-            bpmHistory.push(60000 / interval);
-            if (bpmHistory.length > 8) bpmHistory.shift();
-            detectedBpm = Math.round(bpmHistory.reduce((a, b) => a + b) / bpmHistory.length);
-            const bpmDisplay = containerRef.current?.querySelector('#bpm-display');
-            if (bpmDisplay) bpmDisplay.textContent = detectedBpm;
-          }
-        }
-        lastBeatTime = now; beatCooldown = 15;
-        flashAlpha = Math.min((bass / 3) * 0.4, 0.35);
-        const beatLed = containerRef.current?.querySelector('#l-beat');
-        if (beatLed) {
-          beatLed.className = 'led on-amber';
-          setTimeout(() => beatLed.className = 'led', 80);
-        }
-        if (shakeOn) { shakeX = (Math.random() - 0.5) * 8; shakeY = (Math.random() - 0.5) * 8; }
+    function detectBeat(freq, now) {
+      // Use the low-frequency onset rather than the overall volume or gain setting.
+      const low = (freq[2] + freq[3] + freq[4] + freq[5]) / (4 * 255);
+      const rise = low - previousBass;
+      previousBass = low;
+      bassBaseline += (low - bassBaseline) * 0.04;
+      if (now - lastBeatTime < 240 || low < 0.12 || rise < 0.04 || low < bassBaseline + 0.08) return;
+
+      const interval = now - lastBeatTime;
+      if (lastBeatTime && interval < 2000) {
+        bpmHistory.push(60000 / interval);
+        if (bpmHistory.length > 8) bpmHistory.shift();
+        detectedBpm = Math.round(bpmHistory.reduce((a, b) => a + b) / bpmHistory.length);
+        const bpmDisplay = container.querySelector('#bpm-display');
+        if (bpmDisplay) bpmDisplay.textContent = detectedBpm;
+      }
+      lastBeatTime = now;
+      flashAlpha = Math.min(low * 0.32, 0.24);
+      if (shakeOn) {
+        shakeX = (Math.random() - 0.5) * 8;
+        shakeY = (Math.random() - 0.5) * 8;
       }
     }
-
-
 
     function setMode(m) {
       mode = m; particles = []; lissHist = []; wfBuf = null;
@@ -288,7 +300,7 @@ export const SonoscapePlayer = ({
     let edgePhase = 0;
     let edgeTimestamp = 0;
 
-    function drawEdgeLighting(width, height, hue, bass, energy, treble, timestamp) {
+    function drawEdgeLighting(width, height, hue, bass, energy, treble, timestamp, beat = 0) {
       const inset = Math.max(8, Math.min(width, height) * 0.045);
       if (width <= inset * 2 || height <= inset * 2) return;
       const left = inset, right = width - inset, top = inset, bottom = height - inset;
@@ -315,8 +327,8 @@ export const SonoscapePlayer = ({
 
       // Layer a soft edge halo, a continuous outline and two counter-rotating patterns.
       for (const [size, alpha] of [[2.4, 0.035], [1.5, 0.07], [0.9, 0.14]]) {
-        ctx.lineWidth = inset * size * (0.85 + bass * 0.4);
-        ctx.globalAlpha = alpha * (0.55 + energy);
+        ctx.lineWidth = inset * size * (0.85 + bass * 0.25 + beat * 0.55);
+        ctx.globalAlpha = alpha * (0.55 + energy + beat * 0.8);
         ctx.stroke();
       }
       ctx.lineWidth = 1.5 + energy * 2;
@@ -324,10 +336,10 @@ export const SonoscapePlayer = ({
       ctx.stroke();
 
       const sweep = perimeter / 4;
-      const dash = sweep * (0.22 + bass * 0.43);
+      const dash = sweep * (0.22 + bass * 0.18 + beat * 0.3);
       ctx.setLineDash([dash, sweep - dash]);
       ctx.lineDashOffset = -edgePhase;
-      ctx.lineWidth = 2 + bass * 4;
+      ctx.lineWidth = 2 + bass * 2 + beat * 4;
       ctx.globalAlpha = 0.72 + energy * 0.28;
       ctx.stroke();
 
@@ -350,6 +362,13 @@ export const SonoscapePlayer = ({
         ctx.fillStyle = mode === 'edge_lighting' ? '#060402' : 'rgba(6,4,2,0.15)';
         ctx.fillRect(0, 0, W, H);
         if (mode === 'edge_lighting') drawEdgeLighting(W, H, theme.h, 0, 0, 0, timestamp);
+        lastBeatTime = 0;
+        previousBass = 0;
+        bassBaseline = 0;
+        bpmHistory.length = 0;
+        flashAlpha = 0;
+        flash.style.opacity = '0';
+        container.querySelector('#l-beat')?.classList.remove('on-amber');
         drawVu(0);
         const sigLed = containerRef.current?.querySelector('#l-sig');
         if (sigLed) sigLed.className = 'led';
@@ -378,14 +397,18 @@ export const SonoscapePlayer = ({
         energyInner.style.background = energy > 0.8 ? '#ff2200' : energy > 0.5 ? th(55, 60) : th(45);
       }
 
-      detectBeat(freq, avg);
+      detectBeat(freq, timestamp);
+      const sinceBeat = lastBeatTime ? timestamp - lastBeatTime : Infinity;
+      const beat = Math.exp(-sinceBeat / 125);
+      container.querySelector('#l-beat')?.classList.toggle('on-amber', beatFlashRef.current && sinceBeat < 80);
       
-      if (flashAlpha > 0) {
+      if (beatFlashRef.current && flashAlpha > 0) {
         flash.style.background = theme.flash + flashAlpha + ')';
         flash.style.opacity = '1';
         flashAlpha = Math.max(0, flashAlpha - 0.025);
       } else {
         flash.style.opacity = '0';
+        flashAlpha = 0;
       }
 
       drawVu(Math.min(avg * gain * 2.5, 1));
@@ -413,7 +436,7 @@ export const SonoscapePlayer = ({
       // VISUALIZATION RENDERERS
       if (mode === 'edge_lighting') {
         const treble = freq[Math.floor(bufLen * 0.25)] / 255;
-        drawEdgeLighting(W, H, C, Math.min(1, bass * gain), energy, treble, timestamp);
+        drawEdgeLighting(W, H, C, Math.min(1, bass * gain), energy, treble, timestamp, beat);
       } else if (mode === 'bars') {
         const bars = 80; const bw = (W / bars) * 0.75;
         for (let i = 0; i < bars; i++) {
@@ -715,7 +738,6 @@ export const SonoscapePlayer = ({
     };
   }, [audioRef]);
 
-  const fullscreenLabel = fullscreen ? 'Exit fullscreen' : 'Enter fullscreen';
   return (
     <div ref={containerRef} className={`sonoscope-container ${fullscreen ? 'sonoscope-fullscreen' : ''} ${fullscreen === 'viewport' ? 'sonoscope-viewport' : ''}`}>
       <div id="topbar">
@@ -730,13 +752,26 @@ export const SonoscapePlayer = ({
           <div className="led" id="l-peak"></div><span className="led-lbl">PEAK</span>
           <div className="led" id="l-auto"></div><span className="led-lbl">AUTO</span>
         </div>
-        <button ref={fullscreenButtonRef} type="button" aria-label={fullscreenLabel} title={fullscreenLabel} className="fs-btn" onClick={() => toggleFullscreen().catch(console.warn)}>
-          {fullscreen ? 'Exit fullscreen' : <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" fill="currentColor"/></svg>}
+        <button ref={fullscreenButtonRef} type="button" aria-label="Enter fullscreen" title="Enter fullscreen" className="fs-btn" onClick={() => toggleFullscreen().catch(console.warn)}>
+          <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z" fill="currentColor"/></svg>
         </button>
       </div>
 
       <div id="canvas-wrap">
-        <canvas ref={canvasRef} id="main-canvas"></canvas>
+        <canvas
+          ref={canvasRef}
+          id="main-canvas"
+          role={fullscreen ? 'button' : undefined}
+          aria-label={fullscreen ? 'Exit fullscreen' : undefined}
+          tabIndex={fullscreen ? 0 : undefined}
+          onClick={fullscreen ? exitFullscreen : undefined}
+          onKeyDown={fullscreen ? event => {
+            if (event.key === 'Enter' || event.key === ' ') {
+              event.preventDefault();
+              exitFullscreen();
+            }
+          } : undefined}
+        />
         <div id="flash-overlay"></div>
       </div>
 
@@ -810,6 +845,9 @@ export const SonoscapePlayer = ({
           <div className="icon-btns">
             <button className="ibtn" id="btn-auto">AUTO</button>
             <button className="ibtn" id="btn-shake">SHAKE</button>
+            <button type="button" className={`ibtn ${beatFlash ? 'active' : ''}`} aria-pressed={beatFlash} onClick={toggleBeatFlash}>
+              BEAT FLASH
+            </button>
             <button className="ibtn" id="btn-trails">TRAILS</button>
             <button className="ibtn" id="btn-hue">HUE CYCLE</button>
             <button className="ibtn" id="btn-shot">SNAP</button>
@@ -933,7 +971,7 @@ export const SonoscapePlayer = ({
       <div id="botbar">
         <div id="track-name" className={trackName ? 'on' : ''}>{trackName || 'WAITING FOR SIGNAL...'}</div>
         <div id="mode-name">EDGE LIGHTING</div>
-        <div id="keys-hint">← → MODE · S SNAP · F FULLSCREEN · ESC EXIT</div>
+        <div id="keys-hint">← → MODE · S SNAP · F FULLSCREEN · TAP / ESC TO EXIT</div>
       </div>
     </div>
   );
