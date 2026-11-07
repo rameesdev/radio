@@ -54,8 +54,6 @@ export const useRadioStore = create((set) => ({
       userName: '',
       userId: null,
       currentFrequency: null,
-      stations: [],
-      isConnected: false,
       currentTrack: null,
       playlist: [],
       isPlaying: false,

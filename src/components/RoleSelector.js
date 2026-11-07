@@ -12,6 +12,8 @@ export const RoleSelector = () => {
   const [error, setError] = useState('');
   const [mode, setMode] = useState(null); // 'create', 'join', or null
 
+  const stations = useRadioStore((state) => state.stations);
+  const isConnected = useRadioStore((state) => state.isConnected);
   const setUserRole = useRadioStore((state) => state.setUserRole);
   const setUserName = useRadioStore((state) => state.setUserName);
   const setShowHostPanel = useRadioStore((state) => state.setShowHostPanel);
@@ -43,6 +45,12 @@ export const RoleSelector = () => {
   };
 
   const handleJoinStation = async (frequency) => {
+    if (joining) return;
+    if (!isConnected) {
+      setError('The radio server is still connecting. Try again in a moment.');
+      return;
+    }
+    setError('');
     // Use provided name or generate a default one
     const finalName = hostName.trim() || `Listener ${Math.floor(Math.random() * 10000)}`;
 
@@ -173,6 +181,7 @@ export const RoleSelector = () => {
   }
 
   if (mode === 'join') {
+    const openStations = [...stations].sort((a, b) => Number(Boolean(b.isPlaying)) - Number(Boolean(a.isPlaying)) || a.frequency - b.frequency);
     return (
       <div className="role-selector vintage">
         <button className="back-btn" onClick={() => setMode(null)}>← Back</button>
@@ -193,6 +202,33 @@ export const RoleSelector = () => {
           </div>
 
           {error && <div className="vintage-error">{error}</div>}
+
+          <section className="station-directory" aria-labelledby="station-directory-title">
+            <h3 id="station-directory-title">Open Frequencies</h3>
+            {!isConnected ? (
+              <p role="status">Connecting to the radio server…</p>
+            ) : openStations.length === 0 ? (
+              <p role="status">No stations are open right now.</p>
+            ) : (
+              <ul>
+                {openStations.map(station => (
+                  <li key={station.frequency}>
+                    <button type="button" disabled={joining} onClick={() => handleJoinStation(station.frequency)}
+                      aria-label={`Tune to ${station.frequency} FM`}>
+                      <span className="station-directory-frequency">{station.frequency} FM</span>
+                      <span className="station-directory-host">{station.hostName || 'Radio station'}</span>
+                      <span className={station.isPlaying ? 'station-directory-status playing' : 'station-directory-status'}>
+                        {station.isPlaying ? 'Playing' : station.currentTrack ? 'Paused' : 'Open'}
+                      </span>
+                      <span className="station-directory-listeners">
+                        {station.listenerCount} {station.listenerCount === 1 ? 'listener' : 'listeners'}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
 
           <VintageTuner
             onTune={handleJoinStation}

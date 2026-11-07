@@ -149,9 +149,10 @@ export class SocketService {
 
   // Utility Methods
   getStations() {
-    return new Promise((resolve) => {
-      this.socket.emit('util:get-stations', (response) => {
-        resolve(response.stations || []);
+    return new Promise((resolve, reject) => {
+      this.socket.timeout(4000).emit('util:get-stations', (error, response) => {
+        if (error) return reject(error);
+        resolve(response?.stations || []);
       });
     });
   }

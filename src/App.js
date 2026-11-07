@@ -43,18 +43,9 @@ function App() {
       }
       const socket = socketService.connect(socketUrl);
 
-      socket.on('connect', () => {
-        setIsConnected(true);
-        console.log('✅ Connected');
-      });
-
-      socket.on('disconnect', () => {
-        setIsConnected(false);
-        console.log('❌ Disconnected');
-      });
-
       // Fetch initial stations
       const fetchStations = async () => {
+        if (!socket.connected) return;
         try {
           const stations = await socketService.getStations();
           setStations(stations);
@@ -63,6 +54,14 @@ function App() {
         }
       };
 
+      socket.on('connect', () => {
+        setIsConnected(true);
+        fetchStations();
+      });
+      socket.on('disconnect', () => {
+        setIsConnected(false);
+        setStations([]);
+      });
       stationsInterval = setInterval(fetchStations, 5000);
       fetchStations();
     }, 2500);

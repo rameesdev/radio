@@ -791,3 +791,69 @@
   font-size: 0.95rem;
   line-height: 1.5;
 }
+
+.station-directory {
+  margin-block: 1rem;
+  color: #f5deb3;
+}
+
+.station-directory h3 {
+  margin-bottom: 0.65rem;
+}
+
+.station-directory p,
+.station-directory-listeners {
+  color: #d4a574;
+  font-size: 0.85rem;
+}
+
+.station-directory ul {
+  display: grid;
+  gap: 0.45rem;
+  list-style: none;
+}
+
+.station-directory button {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.25rem 0.7rem;
+  align-items: center;
+  width: 100%;
+  padding: 0.65rem 0.8rem;
+  border: 1px solid #8b6f47;
+  border-radius: 0.5rem;
+  background: #261711;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.station-directory button:hover,
+.station-directory button:focus-visible {
+  border-color: #f5deb3;
+  background: #38241a;
+}
+
+.station-directory button:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+
+.station-directory-frequency {
+  font-weight: 700;
+}
+
+.station-directory-host {
+  grid-row: 2;
+  overflow-wrap: anywhere;
+}
+
+.station-directory-status,
+.station-directory-listeners {
+  text-align: right;
+}
+
+.station-directory-status.playing {
+  color: #92e5a9;
+}
