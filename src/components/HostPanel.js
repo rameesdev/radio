@@ -15,7 +15,8 @@ export const HostPanel = () => {
   const currentTrack = useRadioStore((state) => state.currentTrack);
   const isPlaying = useRadioStore((state) => state.isPlaying);
   const listenerCount = useRadioStore((state) => state.listenerCount);
-  const setCurrentTrack = useRadioStore((state) => state.setCurrentTrack);
+  const trackUrl = currentTrack?.fileUrl;
+  const trackId = currentTrack?.id;
   const setIsPlaying = useRadioStore((state) => state.setIsPlaying);
   const setMessage = useRadioStore((state) => state.setMessage);
   const setError = useRadioStore((state) => state.setError);
@@ -128,26 +129,29 @@ export const HostPanel = () => {
     }
   };
 
+  const playRequest = useRef(false);
   const handlePlayPause = async () => {
+    const audio = audioRef.current;
+    if (!audio || !trackUrl || playRequest.current) return;
+    playRequest.current = true;
     try {
       if (isPlaying) {
-        const currentTime = audioRef.current?.currentTime || 0;
-        setPausedTime(currentTime);
-        await socketService.pause(currentFrequency, currentTime);
-        if (audioRef.current) audioRef.current.pause();
+        const position = audio.currentTime;
+        audio.pause();
+        setPausedTime(position);
+        await socketService.pause(currentFrequency, position);
         setIsPlaying(false);
       } else {
-        const resumeTime = pausedTime || 0;
-        await socketService.play(currentFrequency, resumeTime);
-        if (audioRef.current) {
-          audioRef.current.currentTime = resumeTime;
-          audioRef.current.play().catch(err => console.error('Playback error:', err));
-        }
-        setPausedTime(0);
+        audio.currentTime = pausedTime;
+        await audio.play();
+        await socketService.play(currentFrequency, audio.currentTime);
         setIsPlaying(true);
       }
     } catch (err) {
+      if (!isPlaying) audio.pause();
       setError(err.message);
+    } finally {
+      playRequest.current = false;
     }
   };
 
@@ -165,18 +169,19 @@ export const HostPanel = () => {
   }, [currentFrequency, isPlaying, setError]);
 
   useEffect(() => {
-    if (audioRef.current && currentTrack) {
-      audioRef.current.src = currentTrack.fileUrl;
+    if (audioRef.current && trackUrl) {
       const position = restoredTime.current;
       restoredTime.current = 0;
+      setDuration(0);
       setPlaybackTime(position);
       setPausedTime(position);
-      const restorePosition = () => { audioRef.current.currentTime = position; };
       const audio = audioRef.current;
-      audio.addEventListener('loadedmetadata', restorePosition, { once: true });
+      const restorePosition = () => { audio.currentTime = position; };
+      if (audio.readyState >= 1) restorePosition();
+      else audio.addEventListener('loadedmetadata', restorePosition, { once: true });
       return () => audio.removeEventListener('loadedmetadata', restorePosition);
     }
-  }, [currentTrack]);
+  }, [trackId, trackUrl]);
 
   useEffect(() => {
     if (audioRef.current) {
@@ -186,7 +191,7 @@ export const HostPanel = () => {
         audioRef.current.pause();
       }
     }
-  }, [isPlaying]);
+  }, [isPlaying, trackId, trackUrl]);
 
   useEffect(() => {
     if (!isDragging) return;
@@ -211,22 +216,25 @@ export const HostPanel = () => {
     };
   }, [isDragging, duration, handleSeek]);
 
-  const handleSkipTrack = async () => {
+  const selectTrack = async (index) => {
+    if (playRequest.current || !playlist[index]) return;
     try {
-      const currentIndex = playlist.findIndex((t) => t.id === currentTrack?.id);
-      const nextIndex = (currentIndex + 1) % playlist.length;
-      await socketService.changeTrack(currentFrequency, nextIndex);
-      setCurrentTrack(playlist[nextIndex]);
+      await socketService.changeTrack(currentFrequency, index);
+      if (playlist[index].id === trackId && audioRef.current) {
+        audioRef.current.currentTime = 0;
+        if (isPlaying) await audioRef.current.play();
+      }
     } catch (err) { setError(err.message); }
   };
 
-  const handlePreviousTrack = async () => {
-    try {
-      const currentIndex = playlist.findIndex((t) => t.id === currentTrack?.id);
-      const prevIndex = (currentIndex - 1 + playlist.length) % playlist.length;
-      await socketService.changeTrack(currentFrequency, prevIndex);
-      setCurrentTrack(playlist[prevIndex]);
-    } catch (err) { setError(err.message); }
+  const handleSkipTrack = () => {
+    const index = playlist.findIndex(track => track.id === trackId);
+    return selectTrack((index + 1) % playlist.length);
+  };
+
+  const handlePreviousTrack = () => {
+    const index = playlist.findIndex(track => track.id === trackId);
+    return selectTrack((index - 1 + playlist.length) % playlist.length);
   };
 
   return (
@@ -267,14 +275,7 @@ export const HostPanel = () => {
           onPlayPause={handlePlayPause}
           onSkipNext={handleSkipTrack}
           onSkipPrevious={handlePreviousTrack}
-          onTrackSelect={(index) => {
-            try {
-              socketService.changeTrack(currentFrequency, index);
-              setCurrentTrack(playlist[index]);
-            } catch (err) {
-              setError(err.message);
-            }
-          }}
+          onTrackSelect={selectTrack}
           onFileUpload={(e) => handleFileUpload(e)}
           duration={duration}
           currentTime={playbackTime}
@@ -287,7 +288,7 @@ export const HostPanel = () => {
         <audio
           preload="none"
           ref={audioRef}
-          src={currentTrack?.fileUrl}
+          src={trackUrl}
           crossOrigin="anonymous"
           style={{ display: 'none' }}
           onLoadedMetadata={(e) => setDuration(e.target.duration || currentTrack?.duration || 0)}
