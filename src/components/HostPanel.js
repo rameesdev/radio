@@ -2,32 +2,33 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { useRadioStore } from '../store/useRadioStore';
 import { socketService } from '../utils/socketService';
 import { useSocketListener } from '../hooks';
-import { SonoscapePlayer } from './SonoscapePlayer';
-import { MicrophoneChat } from './MicrophoneChat';
-import './HostPanel.css';
+import { X } from 'lucide-react';
+import { StationWorkspace } from './StationWorkspace';
 
 export const HostPanel = () => {
   useSocketListener();
 
   const currentFrequency = useRadioStore((state) => state.currentFrequency);
-  const hostName = useRadioStore((state) => state.hostName);
   const playlist = useRadioStore((state) => state.playlist);
   const currentTrack = useRadioStore((state) => state.currentTrack);
   const isPlaying = useRadioStore((state) => state.isPlaying);
-  const listenerCount = useRadioStore((state) => state.listenerCount);
   const trackUrl = currentTrack?.fileUrl;
   const trackId = currentTrack?.id;
   const setIsPlaying = useRadioStore((state) => state.setIsPlaying);
   const setMessage = useRadioStore((state) => state.setMessage);
   const setError = useRadioStore((state) => state.setError);
 
+  const importDialog = useRef(null);
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [youtubeJob, setYoutubeJob] = useState(null);
 
   useEffect(() => {
     const socket = socketService.socket;
     if (!socket) return;
-    const progress = job => setYoutubeJob(job);
+    const progress = job => {
+      setYoutubeJob(job);
+      if (!job.running && job.imported > 0) setMessage(job.imported + ' tracks added to the queue');
+    };
     const refreshStatus = () => {
       socket.timeout(5000).emit('host:youtube-status', { frequency: currentFrequency }, (error, job) => {
         if (!error) setYoutubeJob(job);
@@ -44,7 +45,7 @@ export const HostPanel = () => {
       socket.off('disconnect', disconnected);
       clearInterval(timer);
     };
-  }, [currentFrequency]);
+  }, [currentFrequency, setMessage]);
 
   const importYoutube = event => {
     event.preventDefault();
@@ -60,13 +61,10 @@ export const HostPanel = () => {
   const [duration, setDuration] = useState(0);
   const [playbackTime, setPlaybackTime] = useState(() => useRadioStore.getState().currentTime || 0);
   const [pausedTime, setPausedTime] = useState(() => useRadioStore.getState().currentTime || 0);
-  const [isDragging, setIsDragging] = useState(false);
   
   // THIS IS THE MASTER AUDIO REFERENCE
   const audioRef = useRef(null);
   const restoredTime = useRef(useRadioStore.getState().currentTime || 0);
-  const fileInputRef = useRef(null);
-  const progressRef = useRef(null);
 
   const handleFileUpload = async (e) => {
     const files = e.target.files;
@@ -80,7 +78,6 @@ export const HostPanel = () => {
         const validExtensions = ['mp3', 'wav', 'ogg', 'webm', 'aac', 'm4a'];
         if (!validExtensions.includes(ext)) {
           setError(`❌ "${file.name}" is not an audio file. Please upload audio files only.`);
-          if (fileInputRef.current) fileInputRef.current.value = '';
           return;
         }
       }
@@ -123,7 +120,6 @@ export const HostPanel = () => {
 
       await socketService.uploadTracks(currentFrequency, newTracks, true);
       setMessage(`📁 Uploaded ${newTracks.length} tracks successfully!`);
-      if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err) {
       setError(`❌ Upload Error: ${err.message}`);
     }
@@ -143,6 +139,7 @@ export const HostPanel = () => {
         setIsPlaying(false);
       } else {
         audio.currentTime = pausedTime;
+        audio.audioCtx?.resume().catch(() => {});
         await audio.play();
         await socketService.play(currentFrequency, audio.currentTime);
         setIsPlaying(true);
@@ -193,29 +190,6 @@ export const HostPanel = () => {
     }
   }, [isPlaying, trackId, trackUrl]);
 
-  useEffect(() => {
-    if (!isDragging) return;
-    const handleMouseMove = (e) => {
-      if (!progressRef.current || duration <= 0) return;
-      const rect = progressRef.current.getBoundingClientRect();
-      const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
-      setPlaybackTime(percent * duration);
-    };
-    const handleMouseUp = () => {
-      if (!progressRef.current || duration <= 0) return setIsDragging(false);
-      const rect = progressRef.current.getBoundingClientRect();
-      const percent = (Math.max(rect.left, Math.min(rect.right, window.event?.clientX || rect.right)) - rect.left) / rect.width;
-      handleSeek(percent * duration);
-      setIsDragging(false);
-    };
-    document.addEventListener('mousemove', handleMouseMove);
-    document.addEventListener('mouseup', handleMouseUp);
-    return () => {
-      document.removeEventListener('mousemove', handleMouseMove);
-      document.removeEventListener('mouseup', handleMouseUp);
-    };
-  }, [isDragging, duration, handleSeek]);
-
   const selectTrack = async (index) => {
     if (playRequest.current || !playlist[index]) return;
     try {
@@ -237,54 +211,38 @@ export const HostPanel = () => {
     return selectTrack((index - 1 + playlist.length) % playlist.length);
   };
 
+  const transport = {
+    play: handlePlayPause, previous: handlePreviousTrack, next: handleSkipTrack,
+    seek: handleSeek, select: selectTrack, upload: handleFileUpload,
+  };
+
   return (
-    <div className="host-panel">
-      <div className="host-panel-content">
-        <div className="header">
-          <h2>🎙️ Station: {currentFrequency} FM</h2>
-          <p className="host-name">{hostName}</p>
-          <div className="listener-count">👥 {listenerCount} listeners</div>
+    <StationWorkspace audioRef={audioRef} duration={duration} currentTime={playbackTime}
+      transport={transport} importPlaylist={() => importDialog.current?.showModal()}>
+      <dialog ref={importDialog} className="workspace-dialog" aria-labelledby="import-title">
+        <div className="workspace-section-header">
+          <h2 id="import-title">Import playlist</h2>
+          <button type="button" className="icon-button" aria-label="Close import" onClick={() => importDialog.current?.close()}><X /></button>
         </div>
-
-        <form className="youtube-import" onSubmit={importYoutube}>
-          <p>Your frequency and playlist are reserved for 15 minutes after disconnect. Refreshing restores your host session.</p>
-          <label htmlFor="youtube-playlist">Import YouTube playlist as audio</label>
-          <div className="youtube-import-actions">
-            <input id="youtube-playlist" type="url" required value={youtubeUrl}
-              onChange={event => setYoutubeUrl(event.target.value)}
-              placeholder="https://music.youtube.com/playlist?list=…"
-              disabled={youtubeJob?.running} />
-            <button type="submit" disabled={youtubeJob?.running}>Import playlist</button>
-            {youtubeJob?.running && <button type="button"
-              onClick={() => socketService.socket.emit('host:cancel-youtube')}>Cancel</button>}
+        <form onSubmit={importYoutube}>
+          <label htmlFor="youtube-playlist">YouTube playlist URL</label>
+          <input id="youtube-playlist" type="url" required value={youtubeUrl}
+            onChange={event => setYoutubeUrl(event.target.value)}
+            placeholder="https://music.youtube.com/playlist?list=..."
+            disabled={youtubeJob?.running} />
+          {youtubeJob && !youtubeJob.entries && <div role="status" className="import-status">
+            <p>{youtubeJob.message}</p>
+            {youtubeJob.total > 0 && <>
+              <progress aria-label="Import progress" max={youtubeJob.total} value={youtubeJob.processed || 0} />
+              <small>{youtubeJob.imported || 0} added · {youtubeJob.failed || 0} skipped</small>
+            </>}
+          </div>}
+          <div className="queue-actions">
+            <button type="submit" className="primary-action" disabled={youtubeJob?.running}>Import playlist</button>
+            {youtubeJob?.running && <button type="button" onClick={() => socketService.socket.emit('host:cancel-youtube')}>Cancel import</button>}
           </div>
-          <small>Public playlists · up to 30 minutes per track · unavailable tracks are skipped</small>
-          {youtubeJob && !youtubeJob.entries && <p role="status">
-            {youtubeJob.message}
-            {youtubeJob.total > 0 && ` · ${youtubeJob.processed || 0}/${youtubeJob.total} processed · ${youtubeJob.imported || 0} added`}
-          </p>}
         </form>
-
-        {/* ✅ ENHANCED: SonoscapePlayer now includes seekbar, controls, upload, and playlist */}
-        <SonoscapePlayer 
-          audioRef={audioRef}
-          isPlaying={isPlaying}
-          trackName={currentTrack?.title}
-          playlist={playlist}
-          currentTrack={currentTrack}
-          onPlayPause={handlePlayPause}
-          onSkipNext={handleSkipTrack}
-          onSkipPrevious={handlePreviousTrack}
-          onTrackSelect={selectTrack}
-          onFileUpload={(e) => handleFileUpload(e)}
-          duration={duration}
-          currentTime={playbackTime}
-          onSeek={handleSeek}
-          listenerCount={listenerCount}
-          currentFrequency={currentFrequency}
-        />
-
-        {/* ✅ ONLY audio element - hidden, no wrapper needed */}
+      </dialog>
         <audio
           preload="none"
           ref={audioRef}
@@ -295,16 +253,6 @@ export const HostPanel = () => {
           onTimeUpdate={(e) => setPlaybackTime(e.target.currentTime)}
           onEnded={() => handleSkipTrack()}
         />
-
-        {/* 🎤 Voice Chat */}
-        <MicrophoneChat
-          frequency={currentFrequency}
-          userName={hostName}
-          userRole="host"
-        />
-
-        {/* ✅ OLD CONTROLS REMOVED - Now integrated in SonoscapePlayer */}
-      </div>
-    </div>
+    </StationWorkspace>
   );
 };

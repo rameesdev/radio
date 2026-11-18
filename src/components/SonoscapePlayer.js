@@ -1,30 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import './SonoscapeVisualizerStyle.css';
 
-/**
- * SonoscapePlayer - Full-Featured Player with Visualizer
- * ✅ ENHANCED: Now includes seekbar, play controls, playlist, and file upload
- * ✅ ARCHITECTURE: Pure visualizer + integrated player controls
- * ✅ readOnly mode: For listeners - shows visualizer and playlist only
- */
-export const SonoscapePlayer = ({ 
-  audioRef, 
-  isPlaying, 
-  trackName,
-  playlist = [],
-  currentTrack = null,
-  onPlayPause = () => {},
-  onSkipNext = () => {},
-  onSkipPrevious = () => {},
-  onTrackSelect = () => {},
-  onFileUpload = () => {},
-  duration = 0,
-  currentTime = 0,
-  onSeek = () => {},
-  listenerCount = 0,
-  currentFrequency = null,
-  readOnly = false
-}) => {
+export const SonoscapePlayer = ({ audioRef, trackName }) => {
   const containerRef = useRef(null);
   const canvasRef = useRef(null);
   const vuCanvasRef = useRef(null);
@@ -216,7 +193,10 @@ export const SonoscapePlayer = ({
       
       audio.sourceNode.connect(g);
       g.connect(a);
-      a.connect(audio.audioCtx.destination);
+      const volume = audio.audioCtx.createGain();
+      a.connect(volume);
+      volume.connect(audio.audioCtx.destination);
+      audio.volumeNode = volume;
       
       audio.analyserNode = a;
       audio.gainNode = g;
@@ -408,6 +388,7 @@ export const SonoscapePlayer = ({
         const targetGain = audio.paused || audio.ended ? 1 : gain;
         if (gainNode.gain.value !== targetGain) gainNode.gain.value = targetGain;
       }
+      if (container.closest('[hidden]')) return;
       if (!analyser || audio.paused || audio.src === '') {
         ctx.fillStyle = mode === 'edge_lighting' ? '#000' : 'rgba(6,4,2,0.15)';
         ctx.fillRect(0, 0, W, H);
@@ -797,7 +778,7 @@ export const SonoscapePlayer = ({
     setupKnob('k-zoom', 'kd-zoom', 'kv-zoom', 0.1, 1, 1, 1, (v) => { zoom = v; });
 
     const handleKeyDown = async (e) => {
-      if (e.target?.matches?.('input, select, textarea')) return;
+      if (container.closest('[hidden]') || e.target?.matches?.('input, select, textarea')) return;
       if (e.key === 'ArrowRight') { const idx = (modes.indexOf(mode) + 1) % modes.length; setMode(modes[idx]); }
       else if (e.key === 'ArrowLeft') { const idx = (modes.indexOf(mode) - 1 + modes.length) % modes.length; setMode(modes[idx]); }
       else if (e.key === 's' || e.key === 'S') containerRef.current?.querySelector('#btn-shot')?.click();
@@ -955,119 +936,6 @@ export const SonoscapePlayer = ({
         </div>
       </div>
 
-      {/* ✅ NEW: Player Controls Section - Hidden in readOnly mode (for listeners) */}
-      {!readOnly && (
-      <div className="player-controls-section">
-        {/* Seekbar with time display */}
-        <div className="playback-info">
-          <div className="time-display">{formatTime(currentTime)}</div>
-          <div className="progress-bar-container">
-            <div
-              className="progress-bar"
-              onClick={(e) => {
-                if (duration <= 0) return;
-                const rect = e.currentTarget.getBoundingClientRect();
-                onSeek(((e.clientX - rect.left) / rect.width) * duration);
-              }}
-              style={{ cursor: 'pointer', userSelect: 'none' }}
-            >
-              <div
-                className="progress-fill"
-                style={{ width: `${((currentTime || 0) / (duration || 0)) * 100}%` }}
-              ></div>
-            </div>
-          </div>
-          <div className="time-display duration-display">-{formatTime(duration - currentTime)}</div>
-        </div>
-
-        {/* Transport Controls */}
-        <div className="transport-controls">
-          <button 
-            className="transport-btn" 
-            onClick={onSkipPrevious} 
-            disabled={playlist.length === 0}
-            title="Previous Track"
-          >
-            <svg viewBox="0 0 24 24" width="16" height="16">
-              <path d="M6 6h2v12H6V6zm3.5 6l8.5 6V6z" fill="currentColor"/>
-            </svg>
-          </button>
-          
-          <button 
-            className={`transport-btn play-pause ${isPlaying ? 'playing' : ''}`}
-            onClick={onPlayPause}
-            disabled={playlist.length === 0}
-            title={isPlaying ? 'Pause' : 'Play'}
-          >
-            {isPlaying ? (
-              <svg viewBox="0 0 24 24" width="18" height="18">
-                <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" fill="currentColor"/>
-              </svg>
-            ) : (
-              <svg viewBox="0 0 24 24" width="18" height="18">
-                <path d="M8 5v14l11-7z" fill="currentColor"/>
-              </svg>
-            )}
-          </button>
-          
-          <button 
-            className="transport-btn" 
-            onClick={onSkipNext}
-            disabled={playlist.length === 0}
-            title="Next Track"
-          >
-            <svg viewBox="0 0 24 24" width="16" height="16">
-              <path d="M16 18h2V6h-2v12zM2 18l8.5-6L2 6z" fill="currentColor"/>
-            </svg>
-          </button>
-
-          <div className="track-info">
-            <div className="current-track">{currentTrack?.title || 'No track selected'}</div>
-            <div className="freq-info">{currentFrequency ? `Frequency: ${currentFrequency} FM` : ''}</div>
-          </div>
-        </div>
-
-        {/* Upload Button */}
-        <div className="upload-section">
-          <input
-            id="player-audio-upload"
-            type="file"
-            multiple
-            accept="audio/mpeg,audio/wav,audio/ogg,audio/webm,audio/aac,audio/mp4,.mp3,.wav,.ogg,.webm,.aac,.m4a"
-            onChange={onFileUpload}
-            style={{ display: 'none' }}
-          />
-          <label htmlFor="player-audio-upload" className="upload-label">
-            📁 Upload Audio
-          </label>
-        </div>
-      </div>
-      )}
-
-      {/* ✅ NEW: Playlist Section */}
-      {playlist.length > 0 && (
-        <div className="embedded-playlist">
-          <div className="playlist-header">
-            <span className="playlist-title">Playlist ({playlist.length} tracks)</span>
-            {listenerCount !== undefined && <span className="listener-badge">👥 {listenerCount} listening</span>}
-          </div>
-          <div className="playlist-items">
-            {playlist.map((track, index) => (
-              <div
-                key={track.id}
-                className={`playlist-item ${currentTrack?.id === track.id ? 'active' : ''}`}
-                onClick={() => onTrackSelect(index)}
-                title={`${track.title} - ${formatTime(track.duration)}`}
-              >
-                <span className="track-number">{index + 1}</span>
-                <span className="track-title">{track.title}</span>
-                <span className="track-duration">{formatTime(track.duration)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
       <div id="botbar">
         <div id="track-name" className={trackName ? 'on' : ''}>{trackName || 'WAITING FOR SIGNAL...'}</div>
         <div id="mode-name">EDGE LIGHTING</div>
@@ -1076,10 +944,4 @@ export const SonoscapePlayer = ({
     </div>
   );
 
-  function formatTime(seconds) {
-    if (!seconds || isNaN(seconds)) return '0:00';
-    const mins = Math.floor(seconds / 60);
-    const secs = Math.floor(seconds % 60);
-    return `${mins}:${secs.toString().padStart(2, '0')}`;
-  }
 };

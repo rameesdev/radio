@@ -1,3 +1,4 @@
+import { Mic, MicOff, Volume2 } from 'lucide-react';
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { socketService } from '../utils/socketService';
 import './MicrophoneChat.css';
@@ -18,7 +19,7 @@ const ICE_SERVERS = {
  *  - userName: string
  *  - userRole: 'host' | 'listener'
  */
-export const MicrophoneChat = ({ frequency, userName, userRole }) => {
+export const MicrophoneChat = ({ frequency, userName, userRole, participantCount }) => {
   const [isMicOn, setIsMicOn] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [activeSpeakers, setActiveSpeakers] = useState([]); // [{ socketId, userName }]
@@ -367,7 +368,8 @@ export const MicrophoneChat = ({ frequency, userName, userRole }) => {
   return (
     <div className="mic-chat-container">
       <div className="mic-chat-header">
-        <span className="mic-chat-title">🎙️ Voice Chat</span>
+        <span className="mic-chat-title">Voice chat</span>
+        {participantCount != null && <span className="voice-participants">{participantCount} connected</span>}
         {activeSpeakers.length > 0 && (
           <span className="mic-live-badge">LIVE</span>
         )}
@@ -389,9 +391,9 @@ export const MicrophoneChat = ({ frequency, userName, userRole }) => {
           {micPermission === 'loading' ? (
             <span className="mic-spinner" />
           ) : isMicOn ? (
-            isMuted ? '🔇' : '🎤'
+            isMuted ? <MicOff /> : <Mic />
           ) : (
-            '🎤'
+            <Mic />
           )}
         </button>
       </div>
@@ -401,7 +403,7 @@ export const MicrophoneChat = ({ frequency, userName, userRole }) => {
         {(micPermission === 'denied' || micPermission === 'insecure' || micPermission === 'no-device') && (
           <div className="mic-error-block">
             <span className="mic-denied-icon">
-              {micPermission === 'insecure' ? '🔒' : micPermission === 'no-device' ? '🎙️' : '⛔'}
+              <MicOff size={16} />
             </span>
             <span className="mic-denied-msg">{micErrorMsg}</span>
             {micPermission === 'denied' && (
@@ -412,7 +414,7 @@ export const MicrophoneChat = ({ frequency, userName, userRole }) => {
                   setMicErrorMsg('');
                 }}
               >
-                🔄 Try Again
+                Try again
               </button>
             )}
           </div>
@@ -432,13 +434,13 @@ export const MicrophoneChat = ({ frequency, userName, userRole }) => {
           className={`mic-mute-btn ${isMuted ? 'muted' : ''}`}
           onClick={toggleMute}
         >
-          {isMuted ? '🔈 Unmute' : '🔇 Mute'}
+          {isMuted ? 'Unmute' : 'Mute'}
         </button>
       )}
 
       {/* Volume slider for incoming voice */}
       <div className="mic-volume-row">
-        <span className="mic-volume-label">🔊</span>
+        <span className="mic-volume-label"><Volume2 size={16} /></span>
         <input
           id="mic-volume-slider"
           type="range"
@@ -455,7 +457,7 @@ export const MicrophoneChat = ({ frequency, userName, userRole }) => {
       {/* Active speakers list */}
       {activeSpeakers.length > 0 && (
         <div className="mic-speakers-list">
-          <p className="mic-speakers-title">🔴 Speaking now:</p>
+          <p className="mic-speakers-title">Speaking now</p>
           {activeSpeakers.map((s) => (
             <div key={s.socketId} className="mic-speaker-item">
               <span className="mic-speaker-dot" />

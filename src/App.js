@@ -1,9 +1,10 @@
 import React, { useEffect, useState, Suspense } from 'react';
-import { Routes, Route, Link } from 'react-router-dom';
+import { Routes, Route } from 'react-router-dom';
 import { useRadioStore } from './store/useRadioStore';
 import { socketService } from './utils/socketService';
 import { RoleSelector } from './components/RoleSelector';
 import { StationHelmet } from './components/StationHelmet';
+import './components/StationWorkspace.css';
 import Footer from './components/Footer';
 import ScrollToTop from './components/ScrollToTop';
 import About from './pages/About';
@@ -19,7 +20,6 @@ const ListenerPanel = React.lazy(() => import('./components/ListenerPanel').then
 function App() {
   const userRole = useRadioStore((state) => state.userRole);
   const showHostPanel = useRadioStore((state) => state.showHostPanel);
-  const isConnected = useRadioStore((state) => state.isConnected);
   const error = useRadioStore((state) => state.error);
   const message = useRadioStore((state) => state.message);
   const setIsConnected = useRadioStore((state) => state.setIsConnected);
@@ -113,34 +113,14 @@ function App() {
   }, [error]);
 
   return (
-    <div className="app">
-      <div className="status-bar">
-        <Link to="/" style={{ textDecoration: 'none', color: 'inherit', display: 'flex', alignItems: 'center' }}>
-          <span className="logo-text">
-            VIRTUAL RADIO
-          </span>
-        </Link>
-        <div style={{ flex: 1 }}></div>
-        <span className={`connection-status ${isConnected ? 'connected' : 'disconnected'}`}>
-          {isConnected ? '🟢 Connected' : '🔴 Disconnected'}
-        </span>
-        {userRole && (
-          <button className="btn-logout" onClick={() => {
-            if (userRole === 'host') socketService.socket?.emit('host:leave');
-            reset();
-          }}>
-            🚪 Leave
-          </button>
-        )}
-      </div>
-
-      {notification && <div className="notification">{notification}</div>}
+    <div className="app radio-app">
+      {notification && <div className="notification" role="status">{notification}</div>}
 
       <ScrollToTop />
       <StationHelmet />
 
       <main className="main-content">
-        <Suspense fallback={<div style={{ textAlign: 'center', marginTop: '50px' }}>Loading...</div>}>
+        <Suspense fallback={<div className="station-skeleton" role="status"><span>Loading station…</span></div>}>
           <Routes>
             <Route path="/" element={
               !userRole ? (
