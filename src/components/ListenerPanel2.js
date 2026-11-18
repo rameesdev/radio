@@ -56,6 +56,7 @@ export const ListenerPanel = () => {
 
         <div className="player-section">
           <audio
+            preload="none"
             ref={audioRef}
             src={currentTrack?.fileUrl}
             crossOrigin="anonymous"

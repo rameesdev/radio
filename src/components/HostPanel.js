@@ -15,7 +15,6 @@ export const HostPanel = () => {
   const currentTrack = useRadioStore((state) => state.currentTrack);
   const isPlaying = useRadioStore((state) => state.isPlaying);
   const listenerCount = useRadioStore((state) => state.listenerCount);
-  const setPlaylist = useRadioStore((state) => state.setPlaylist);
   const setCurrentTrack = useRadioStore((state) => state.setCurrentTrack);
   const setIsPlaying = useRadioStore((state) => state.setIsPlaying);
   const setMessage = useRadioStore((state) => state.setMessage);
@@ -121,11 +120,7 @@ export const HostPanel = () => {
 
       if (newTracks.length === 0) throw new Error('No files were processed');
 
-      const updatedPlaylist = [...useRadioStore.getState().playlist, ...newTracks];
-      await socketService.uploadTracks(currentFrequency, updatedPlaylist);
-      setPlaylist(updatedPlaylist);
-      
-      if (!currentTrack) setCurrentTrack(updatedPlaylist[0]);
+      await socketService.uploadTracks(currentFrequency, newTracks, true);
       setMessage(`📁 Uploaded ${newTracks.length} tracks successfully!`);
       if (fileInputRef.current) fileInputRef.current.value = '';
     } catch (err) {
@@ -290,6 +285,7 @@ export const HostPanel = () => {
 
         {/* ✅ ONLY audio element - hidden, no wrapper needed */}
         <audio
+          preload="none"
           ref={audioRef}
           src={currentTrack?.fileUrl}
           crossOrigin="anonymous"

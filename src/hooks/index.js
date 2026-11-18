@@ -16,7 +16,10 @@ export const useSocketListener = () => {
     // Playlist updated
     socketService.onPlaylistUpdated((data) => {
       setPlaylist(data.tracks);
-      setCurrentTrack(data.currentTrack);
+      const current = useRadioStore.getState().currentTrack;
+      if (current?.id !== data.currentTrack?.id || current?.fileUrl !== data.currentTrack?.fileUrl) {
+        setCurrentTrack(data.currentTrack);
+      }
       setMessage('Playlist updated');
     });
 

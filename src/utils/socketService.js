@@ -54,9 +54,9 @@ export class SocketService {
     });
   }
 
-  uploadTracks(frequency, tracks) {
+  uploadTracks(frequency, tracks, append = false) {
     return new Promise((resolve, reject) => {
-      this.socket.emit('host:upload-track', { frequency, tracks }, (response) => {
+      this.socket.emit('host:upload-track', { frequency, tracks, append }, (response) => {
         if (response.success) {
           resolve(response);
         } else {
