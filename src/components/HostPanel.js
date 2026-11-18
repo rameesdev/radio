@@ -4,7 +4,6 @@ import { socketService } from '../utils/socketService';
 import { useSocketListener } from '../hooks';
 import { SonoscapePlayer } from './SonoscapePlayer';
 import { MicrophoneChat } from './MicrophoneChat';
-import { PlaylistFiles } from './PlaylistFiles';
 import './HostPanel.css';
 
 export const HostPanel = () => {
@@ -22,8 +21,6 @@ export const HostPanel = () => {
   const setMessage = useRadioStore((state) => state.setMessage);
   const setError = useRadioStore((state) => state.setError);
 
-  const [mode, setMode] = useState('local-files');
-  const [addingFiles, setAddingFiles] = useState(false);
   const [youtubeUrl, setYoutubeUrl] = useState('');
   const [youtubeJob, setYoutubeJob] = useState(null);
 
@@ -53,7 +50,7 @@ export const HostPanel = () => {
     event.preventDefault();
     setYoutubeJob({ running: true, message: 'Starting import…' });
     socketService.socket.timeout(10000).emit('host:import-youtube',
-      { frequency: currentFrequency, url: youtubeUrl, mode }, (error, result) => {
+      { frequency: currentFrequency, url: youtubeUrl }, (error, result) => {
         if (error || !result?.success) setYoutubeJob({
           running: false, message: result?.message || 'Import could not start. Check the server connection.',
         });
@@ -71,8 +68,8 @@ export const HostPanel = () => {
   const fileInputRef = useRef(null);
   const progressRef = useRef(null);
 
-  const handleFileUpload = async (e, rows) => {
-    const files = rows ? rows.map(row => row.file) : e.target.files;
+  const handleFileUpload = async (e) => {
+    const files = e.target.files;
     if (!files) return;
 
     const validAudioTypes = ['audio/mpeg', 'audio/wav', 'audio/ogg', 'audio/webm', 'audio/aac', 'audio/mp4', 'audio/mp3', 'audio/x-m4a'];
@@ -114,8 +111,8 @@ export const HostPanel = () => {
         const audioDuration = await getAudioDuration(uploadData.file.url);
         newTracks.push({
           id: Math.random().toString(36).substr(2, 9),
-          title: rows?.[newTracks.length]?.entry.title || file.name.replace(/\.[^/.]+$/, ''),
-          artist: rows?.[newTracks.length]?.entry.artist || 'Unknown',
+          title: file.name.replace(/\.[^/.]+$/, ''),
+          artist: 'Unknown',
           duration: audioDuration,
           fileUrl: uploadData.file.url,
           mimeType: file.type,
@@ -131,7 +128,6 @@ export const HostPanel = () => {
       if (!currentTrack) setCurrentTrack(updatedPlaylist[0]);
       setMessage(`📁 Uploaded ${newTracks.length} tracks successfully!`);
       if (fileInputRef.current) fileInputRef.current.value = '';
-      return true;
     } catch (err) {
       setError(`❌ Upload Error: ${err.message}`);
     }
@@ -255,21 +251,16 @@ export const HostPanel = () => {
               onChange={event => setYoutubeUrl(event.target.value)}
               placeholder="https://music.youtube.com/playlist?list=…"
               disabled={youtubeJob?.running} />
-            <select aria-label="Audio source" value={mode} disabled={addingFiles || youtubeJob?.running} onChange={event => setMode(event.target.value)}>
-              <option value="local-files">Match my audio files</option>
-              <option value="download">Download from YouTube</option>
-            </select>
-            <button type="submit" disabled={addingFiles || youtubeJob?.running}>{mode === 'local-files' ? 'Load track list' : 'Import playlist'}</button>
+            <button type="submit" disabled={youtubeJob?.running}>Import playlist</button>
             {youtubeJob?.running && <button type="button"
               onClick={() => socketService.socket.emit('host:cancel-youtube')}>Cancel</button>}
           </div>
-          <small>{mode === 'local-files' ? 'Load the playlist, then match audio files from your device.' : 'Public playlists · up to 30 minutes per track · unavailable tracks are skipped'}</small>
-          {youtubeJob && <p role="status">
+          <small>Public playlists · up to 30 minutes per track · unavailable tracks are skipped</small>
+          {youtubeJob && !youtubeJob.entries && <p role="status">
             {youtubeJob.message}
-            {!youtubeJob.entries && youtubeJob.total > 0 && ` · ${youtubeJob.processed || 0}/${youtubeJob.total} processed · ${youtubeJob.imported || 0} added`}
+            {youtubeJob.total > 0 && ` · ${youtubeJob.processed || 0}/${youtubeJob.total} processed · ${youtubeJob.imported || 0} added`}
           </p>}
         </form>
-        {youtubeJob?.entries && <PlaylistFiles entries={youtubeJob.entries} upload={handleFileUpload} busy={addingFiles} setBusy={setAddingFiles} />}
 
         {/* ✅ ENHANCED: SonoscapePlayer now includes seekbar, controls, upload, and playlist */}
         <SonoscapePlayer 
