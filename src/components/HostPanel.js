@@ -28,9 +28,23 @@ export const HostPanel = () => {
     const socket = socketService.socket;
     if (!socket) return;
     const progress = job => setYoutubeJob(job);
+    const refreshStatus = () => {
+      socket.timeout(5000).emit('host:youtube-status', { frequency: currentFrequency }, (error, job) => {
+        if (!error) setYoutubeJob(job);
+      });
+    };
+    const disconnected = () => setYoutubeJob(job => job?.running
+      ? { ...job, running: false, message: 'Connection lost. The import stopped. Reconnect and retry.' } : job);
     socket.on('server:youtube-import', progress);
-    return () => socket.off('server:youtube-import', progress);
-  }, []);
+    socket.on('disconnect', disconnected);
+    const timer = setInterval(refreshStatus, 5000);
+    refreshStatus();
+    return () => {
+      socket.off('server:youtube-import', progress);
+      socket.off('disconnect', disconnected);
+      clearInterval(timer);
+    };
+  }, [currentFrequency]);
 
   const importYoutube = event => {
     event.preventDefault();
