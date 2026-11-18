@@ -21,6 +21,28 @@ export const HostPanel = () => {
   const setMessage = useRadioStore((state) => state.setMessage);
   const setError = useRadioStore((state) => state.setError);
 
+  const [youtubeUrl, setYoutubeUrl] = useState('');
+  const [youtubeJob, setYoutubeJob] = useState(null);
+
+  useEffect(() => {
+    const socket = socketService.socket;
+    if (!socket) return;
+    const progress = job => setYoutubeJob(job);
+    socket.on('server:youtube-import', progress);
+    return () => socket.off('server:youtube-import', progress);
+  }, []);
+
+  const importYoutube = event => {
+    event.preventDefault();
+    setYoutubeJob({ running: true, message: 'Starting import…' });
+    socketService.socket.timeout(10000).emit('host:import-youtube',
+      { frequency: currentFrequency, url: youtubeUrl }, (error, result) => {
+        if (error || !result?.success) setYoutubeJob({
+          running: false, message: result?.message || 'Import could not start. Check the server connection.',
+        });
+      });
+  };
+
   const [duration, setDuration] = useState(0);
   const [playbackTime, setPlaybackTime] = useState(0);
   const [pausedTime, setPausedTime] = useState(0);
@@ -202,6 +224,24 @@ export const HostPanel = () => {
           <p className="host-name">{hostName}</p>
           <div className="listener-count">👥 {listenerCount} listeners</div>
         </div>
+
+        <form className="youtube-import" onSubmit={importYoutube}>
+          <label htmlFor="youtube-playlist">Import YouTube playlist as audio</label>
+          <div className="youtube-import-actions">
+            <input id="youtube-playlist" type="url" required value={youtubeUrl}
+              onChange={event => setYoutubeUrl(event.target.value)}
+              placeholder="https://music.youtube.com/playlist?list=…"
+              disabled={youtubeJob?.running} />
+            <button type="submit" disabled={youtubeJob?.running}>Import playlist</button>
+            {youtubeJob?.running && <button type="button"
+              onClick={() => socketService.socket.emit('host:cancel-youtube')}>Cancel</button>}
+          </div>
+          <small>Public playlists · up to 30 minutes per track · unavailable tracks are skipped</small>
+          {youtubeJob && <p role="status">
+            {youtubeJob.message}
+            {youtubeJob.total > 0 && ` · ${youtubeJob.processed || 0}/${youtubeJob.total} processed · ${youtubeJob.imported || 0} added`}
+          </p>}
+        </form>
 
         {/* ✅ ENHANCED: SonoscapePlayer now includes seekbar, controls, upload, and playlist */}
         <SonoscapePlayer 

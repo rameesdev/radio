@@ -408,3 +408,11 @@
   font-size: 0.9rem;
   text-align: center;
 }
+
+.youtube-import { padding: 1rem; margin-bottom: 1rem; border: 1px solid #8b6f47; border-radius: 0.6rem; color: #f5deb3; }
+.youtube-import-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-block: 0.6rem; }
+.youtube-import input { flex: 1 1 220px; min-width: 0; background: #1a0f0a; color: #f5deb3; border: 1px solid #8b6f47; border-radius: 0.3rem; padding: 0.65rem; font: inherit; font-size: 16px; }
+.youtube-import button { padding: 0.65rem; background: #38241a; color: #f5deb3; border: 1px solid #8b6f47; border-radius: 0.3rem; cursor: pointer; }
+.youtube-import button:disabled { opacity: 0.5; cursor: wait; }
+.youtube-import small { color: #d4a574; }
+.youtube-import p { margin-top: 0.5rem; overflow-wrap: anywhere; }
