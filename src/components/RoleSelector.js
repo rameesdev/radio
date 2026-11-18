@@ -27,7 +27,10 @@ export const RoleSelector = () => {
 
     setCreating(true);
     try {
-      await socketService.createStation(frequency, finalStationName);
+      const result = await socketService.createStation(frequency, finalStationName);
+      if (result.resumeToken) localStorage.setItem('radioHostSession', JSON.stringify({
+        frequency, token: result.resumeToken,
+      }));
 
       setUserRole('host');
       setUserName(finalStationName);

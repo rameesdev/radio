@@ -44,12 +44,13 @@ export const HostPanel = () => {
   };
 
   const [duration, setDuration] = useState(0);
-  const [playbackTime, setPlaybackTime] = useState(0);
-  const [pausedTime, setPausedTime] = useState(0);
+  const [playbackTime, setPlaybackTime] = useState(() => useRadioStore.getState().currentTime || 0);
+  const [pausedTime, setPausedTime] = useState(() => useRadioStore.getState().currentTime || 0);
   const [isDragging, setIsDragging] = useState(false);
   
   // THIS IS THE MASTER AUDIO REFERENCE
   const audioRef = useRef(null);
+  const restoredTime = useRef(useRadioStore.getState().currentTime || 0);
   const fileInputRef = useRef(null);
   const progressRef = useRef(null);
 
@@ -157,13 +158,16 @@ export const HostPanel = () => {
   useEffect(() => {
     if (audioRef.current && currentTrack) {
       audioRef.current.src = currentTrack.fileUrl;
-      setPlaybackTime(0);
-      setPausedTime(0);
-      if (isPlaying) {
-        audioRef.current.play().catch(err => console.error('Playback error:', err));
-      }
+      const position = restoredTime.current;
+      restoredTime.current = 0;
+      setPlaybackTime(position);
+      setPausedTime(position);
+      const restorePosition = () => { audioRef.current.currentTime = position; };
+      const audio = audioRef.current;
+      audio.addEventListener('loadedmetadata', restorePosition, { once: true });
+      return () => audio.removeEventListener('loadedmetadata', restorePosition);
     }
-  }, [currentTrack, isPlaying]);
+  }, [currentTrack]);
 
   useEffect(() => {
     if (audioRef.current) {
@@ -226,6 +230,7 @@ export const HostPanel = () => {
         </div>
 
         <form className="youtube-import" onSubmit={importYoutube}>
+          <p>Your frequency and playlist are reserved for 15 minutes after disconnect. Refreshing restores your host session.</p>
           <label htmlFor="youtube-playlist">Import YouTube playlist as audio</label>
           <div className="youtube-import-actions">
             <input id="youtube-playlist" type="url" required value={youtubeUrl}

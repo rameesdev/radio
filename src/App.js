@@ -54,8 +54,31 @@ function App() {
         }
       };
 
+      const resumeHost = () => {
+        let saved;
+        try { saved = JSON.parse(localStorage.getItem('radioHostSession')); } catch { return; }
+        if (!saved?.token) return;
+        socket.timeout(8000).emit('host:resume', saved, (error, result) => {
+          if (error) return;
+          if (!result?.success) {
+            reset();
+            useRadioStore.getState().setError(result?.message || 'Host session expired.');
+            return;
+          }
+          const data = result.syncData || {};
+          useRadioStore.setState({
+            userRole: 'host', userName: result.hostName, hostName: result.hostName,
+            currentFrequency: saved.frequency, playlist: data.playlist || [],
+            currentTrack: data.currentTrack || null, isPlaying: data.isPlaying || false,
+            currentTime: data.currentPlaybackTime || 0, listenerCount: data.listenerCount || 0,
+            showHostPanel: true, showJoinPanel: false,
+          });
+        });
+      };
+      socket.on('server:host-replaced', reset);
       socket.on('connect', () => {
         setIsConnected(true);
+        resumeHost();
         fetchStations();
       });
       socket.on('disconnect', () => {
@@ -70,7 +93,7 @@ function App() {
       clearTimeout(connectTimer);
       clearInterval(stationsInterval);
     };
-  }, [setIsConnected, setStations]);
+  }, [setIsConnected, setStations, reset]);
 
   // Show notifications
   useEffect(() => {
@@ -102,7 +125,10 @@ function App() {
           {isConnected ? '🟢 Connected' : '🔴 Disconnected'}
         </span>
         {userRole && (
-          <button className="btn-logout" onClick={reset}>
+          <button className="btn-logout" onClick={() => {
+            if (userRole === 'host') socketService.socket?.emit('host:leave');
+            reset();
+          }}>
             🚪 Leave
           </button>
         )}

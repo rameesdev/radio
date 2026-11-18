@@ -48,7 +48,8 @@ export const useRadioStore = create((set) => ({
   setMessage: (message) => set({ message }),
 
   // Reset
-  reset: () =>
+  reset: () => {
+    localStorage.removeItem('radioHostSession');
     set({
       userRole: null,
       userName: '',
@@ -66,5 +67,6 @@ export const useRadioStore = create((set) => ({
       uploadProgress: 0,
       error: null,
       message: null,
-    }),
+    });
+  },
 }));
