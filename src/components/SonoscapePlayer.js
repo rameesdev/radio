@@ -31,6 +31,7 @@ export const SonoscapePlayer = ({
   const fullscreenButtonRef = useRef(null);
   const [fullscreen, setFullscreen] = useState(null);
   const [beatFlash, setBeatFlash] = useState(false);
+  const edgeSettings = useRef({ sensitivity: 1, speed: 1, width: 1, brightness: 1 });
   const beatFlashRef = useRef(false);
 
   function toggleBeatFlash() {
@@ -121,7 +122,7 @@ export const SonoscapePlayer = ({
     const flash = container.querySelector('#flash-overlay');
 
     let mode = 'edge_lighting';
-    let gain = 1.5;
+    let gain = 1;
     let smooth = 0.8;
     let zoom = 1.0;
     let animId = null;
@@ -314,6 +315,7 @@ export const SonoscapePlayer = ({
     }
 
     function drawEdgeLighting(width, height, hue, freq, waveform, timestamp) {
+      const settings = edgeSettings.current;
       let sum = 0;
       for (const sample of waveform) sum += ((sample - 128) / 128) ** 2;
       const rms = Math.sqrt(sum / waveform.length);
@@ -322,8 +324,8 @@ export const SonoscapePlayer = ({
 
       edgeBands.forEach((band, index) => {
         const level = rms >= 0.014 ? levels[index] : 0;
-        const rise = Math.max(band.rise, band.baseline * 0.09);
-        if (!trigger && level >= band.floor && level - band.previous >= rise &&
+        const rise = Math.max(band.rise, band.baseline * 0.09) / settings.sensitivity;
+        if (!trigger && level >= band.floor / settings.sensitivity && level - band.previous >= rise &&
             level - band.baseline >= rise) {
           trigger = band;
         }
@@ -339,14 +341,14 @@ export const SonoscapePlayer = ({
         if (edgePulses.length === 6) edgePulses.shift();
         edgePulses.push({
           started: timestamp,
-          duration: trigger.duration,
+          duration: trigger.duration / settings.speed,
           strength: trigger.strength * Math.min(1, 0.48 + rms * 6),
         });
         lastEdgePulse = timestamp;
       }
 
       if (!edgePulses.length || width < 24 || height < 24) return;
-      const inset = 5;
+      const inset = Math.max(5, 4 * settings.width);
       const center = width / 2;
       const bottom = height - inset;
       const radius = Math.min(32, (width - 2 * inset) / 4, (height - 2 * inset) / 2);
@@ -371,7 +373,7 @@ export const SonoscapePlayer = ({
       for (const pulse of edgePulses) {
         const progress = (timestamp - pulse.started) / pulse.duration;
         const fade = 1 - Math.max(0, progress - 0.58) / 0.42;
-        const brightness = pulse.strength * fade ** 2;
+        const brightness = pulse.strength * fade ** 2 * settings.brightness;
         const travel = Math.min(1, progress / 0.78);
         const front = halfPerimeter * (0.025 + 0.975 * travel * travel * (3 - 2 * travel));
 
@@ -380,8 +382,8 @@ export const SonoscapePlayer = ({
           const start = Math.max(0, front - halfPerimeter * length);
           ctx.setLineDash([front - start, halfPerimeter]);
           ctx.lineDashOffset = -start;
-          ctx.lineWidth = width;
-          ctx.globalAlpha = brightness * opacity;
+          ctx.lineWidth = width * settings.width;
+          ctx.globalAlpha = Math.min(1, brightness * opacity);
           ctx.stroke();
         };
 
@@ -400,6 +402,10 @@ export const SonoscapePlayer = ({
       
       const W = mc.width; const H = mc.height;
 
+      if (gainNode) {
+        const targetGain = audio.paused || audio.ended ? 1 : gain;
+        if (gainNode.gain.value !== targetGain) gainNode.gain.value = targetGain;
+      }
       if (!analyser || audio.paused || audio.src === '') {
         ctx.fillStyle = mode === 'edge_lighting' ? '#000' : 'rgba(6,4,2,0.15)';
         ctx.fillRect(0, 0, W, H);
@@ -754,9 +760,9 @@ export const SonoscapePlayer = ({
       document.addEventListener('mouseup', () => (active = false), { signal }); document.addEventListener('touchend', () => (active = false), { signal });
     }
 
-    setupKnob('k-gain', 'kd-gain', 'kv-gain', 0.5, 4, 1, 1.5, (v) => { 
+    setupKnob('k-gain', 'kd-gain', 'kv-gain', 0.5, 4, 1, 1, (v) => {
       gain = v; 
-      if (audio?.gainNode) audio.gainNode.gain.value = v; 
+      if (audio?.gainNode && !audio.paused && !audio.ended) audio.gainNode.gain.value = v;
     });
     setupKnob('k-smooth', 'kd-smooth', 'kv-smooth', 0, 0.97, 2, 0.8, (v) => { 
       smooth = v; 
@@ -765,6 +771,7 @@ export const SonoscapePlayer = ({
     setupKnob('k-zoom', 'kd-zoom', 'kv-zoom', 0.1, 1, 1, 1, (v) => { zoom = v; });
 
     const handleKeyDown = async (e) => {
+      if (e.target?.matches?.('input, select, textarea')) return;
       if (e.key === 'ArrowRight') { const idx = (modes.indexOf(mode) + 1) % modes.length; setMode(modes[idx]); }
       else if (e.key === 'ArrowLeft') { const idx = (modes.indexOf(mode) - 1 + modes.length) % modes.length; setMode(modes[idx]); }
       else if (e.key === 's' || e.key === 'S') containerRef.current?.querySelector('#btn-shot')?.click();
@@ -874,11 +881,29 @@ export const SonoscapePlayer = ({
         </div>
       </div>
 
+      <details className="edge-settings">
+        <summary>Edge lighting settings</summary>
+        <div className="edge-settings-sliders">
+          {[
+            ['sensitivity', 'Sensitivity', 0.5, 2],
+            ['speed', 'Flow speed', 0.5, 2],
+            ['width', 'Width', 0.5, 2],
+            ['brightness', 'Brightness', 0, 1.5],
+          ].map(([key, label, min, max]) => (
+            <label key={key}>
+              {label}
+              <input type="range" min={min} max={max} step="0.05" defaultValue={edgeSettings.current[key]}
+                onChange={event => { edgeSettings.current[key] = event.target.valueAsNumber; }} />
+            </label>
+          ))}
+        </div>
+      </details>
+
       <div id="ctrl-row">
         <div className="kg">
           <div className="knob" id="k-gain"><div className="kdot" id="kd-gain"></div></div>
           <span className="klbl">GAIN</span>
-          <span className="kval" id="kv-gain">1.5</span>
+          <span className="kval" id="kv-gain">1.0</span>
         </div>
         <div className="kg">
           <div className="knob" id="k-smooth"><div className="kdot" id="kd-smooth"></div></div>
