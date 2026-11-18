@@ -143,6 +143,7 @@ export const SonoscapePlayer = ({
     let peakHold = 0;
     let peakTimer = 0;
     let flashAlpha = 0;
+    let polygonBeatStrength = 0;
     let shakeX = 0;
     let shakeY = 0;
     let energySmooth = 0;
@@ -282,6 +283,7 @@ export const SonoscapePlayer = ({
         if (bpmDisplay) bpmDisplay.textContent = detectedBpm;
       }
       lastBeatTime = now;
+      polygonBeatStrength = Math.min(1, Math.max(0, (low - 0.24) * 1.35 + rise * 0.6));
       flashAlpha = Math.min(low * 0.32, 0.24);
       if (shakeOn) {
         shakeX = (Math.random() - 0.5) * 8;
@@ -416,6 +418,7 @@ export const SonoscapePlayer = ({
         edgePulses.length = 0;
         lastEdgePulse = -Infinity;
         lastBeatTime = 0;
+        polygonBeatStrength = 0;
         previousBass = 0;
         bassBaseline = 0;
         bpmHistory.length = 0;
@@ -607,15 +610,31 @@ export const SonoscapePlayer = ({
         });
       } else if (mode === 'polygon') {
         const cx = W / 2; const cy = H / 2; const R = Math.min(W, H) * 0.38; const SIDES = 6;
+        const glow = polygonBeatStrength * Math.max(0, 1 - sinceBeat / 420) ** 2;
+        ctx.save();
         for (let ring = 1; ring <= 6; ring++) {
-          const rv = Math.min((freq[Math.floor(zBins * (ring / 8))] / 255) * gain, 1.2); const rr = R * (ring / 6) * (0.6 + rv * 0.5);
+          const rv = Math.min((freq[Math.floor(zBins * (ring / 8))] / 255) * gain, 1.2); const rr = R * (ring / 6) * (0.6 + rv * 0.5 + glow * 0.2);
           ctx.beginPath();
           for (let p = 0; p <= SIDES; p++) {
             const a = (p / SIDES) * Math.PI * 2 - Math.PI / 2 + avg * 2;
             p ? ctx.lineTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr) : ctx.moveTo(cx + Math.cos(a) * rr, cy + Math.sin(a) * rr);
           }
-          ctx.strokeStyle = hsl(C + rv * 50, theme.s, 12 + rv * 38); ctx.lineWidth = 1 + rv; ctx.stroke();
+          ctx.closePath();
+          if (glow > 0.01) {
+            ctx.strokeStyle = hsl(C + rv * 50, theme.s, 62);
+            ctx.shadowColor = ctx.strokeStyle;
+            ctx.shadowBlur = 8 + glow * 24;
+            ctx.globalAlpha = glow * 0.7;
+            ctx.lineWidth = 2 + glow * 3;
+            ctx.stroke();
+            ctx.globalAlpha = 1;
+            ctx.shadowBlur = 0;
+          }
+          ctx.strokeStyle = hsl(C + rv * 50, theme.s, Math.min(82, 12 + rv * 38 + glow * 48));
+          ctx.lineWidth = 1 + rv + glow;
+          ctx.stroke();
         }
+        ctx.restore();
       } else if (mode === 'dna') {
         const amp = H * 0.28; const spd = Date.now() * 0.002;
         for (let p = 0; p < 2; p++) {
