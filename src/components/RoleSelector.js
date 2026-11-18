@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useRadioStore } from '../store/useRadioStore';
 import { socketService } from '../utils/socketService';
-import { ArrowRight, Headphones, Radio } from 'lucide-react';
+import { VintageTuner } from './VintageTuner';
+import './RoleSelector.css';
 
 export const RoleSelector = () => {
   const [stationName, setStationName] = useState('');
@@ -10,8 +11,7 @@ export const RoleSelector = () => {
   const [joining, setJoining] = useState(false);
   const [error, setError] = useState('');
   const [sharedFrequency] = useState(() => new URLSearchParams(window.location.search).get('frequency'));
-  const [mode, setMode] = useState(sharedFrequency != null ? 'join' : 'create');
-  const [frequency, setFrequency] = useState(sharedFrequency ?? '');
+  const [mode, setMode] = useState(sharedFrequency === null ? null : 'join');
 
   const stations = useRadioStore((state) => state.stations);
   const isConnected = useRadioStore((state) => state.isConnected);
@@ -89,63 +89,164 @@ export const RoleSelector = () => {
     }
   };
 
-  const openStations = [...stations].sort((a, b) =>
-    Number(Boolean(b.isPlaying)) - Number(Boolean(a.isPlaying)) || a.frequency - b.frequency);
-  const pending = creating || joining;
-
-  return (
-    <div className="station-lobby">
-      <header className="lobby-header">
-        <div className="workspace-brand"><Radio size={21} /> Ramz Radio</div>
-        <span className={isConnected ? 'socket-online' : ''}>{isConnected ? 'Connected' : 'Connecting…'}</span>
-      </header>
-      <div className="lobby-grid">
-        <section className="lobby-hero">
-          <div className="lobby-radio"><Radio size={70} strokeWidth={1.15} /></div>
-          <h1>Host and listen to live radio</h1>
-          <p>Open a frequency, queue your music, and listen together in sync.</p>
-        </section>
-        <section className="lobby-panel" aria-label="Tune a frequency">
-          <div className="lobby-tabs" aria-label="Station role">
-            <button type="button" aria-pressed={mode === 'create'} disabled={pending} onClick={() => { setMode('create'); setError(''); }}><Radio size={16} />Host</button>
-            <button type="button" aria-pressed={mode === 'join'} disabled={pending} onClick={() => { setMode('join'); setError(''); }}><Headphones size={16} />Listen</button>
+  if (!mode) {
+    return (
+      <div className="role-selector vintage seo-optimized">
+        <div className="vintage-header">
+          <div className="radio-logo">
+            <div className="logo-circle"></div>
+            <h1 style={{ fontSize: '2.5rem', lineHeight: '1.2' }}>Host &amp; Listen to Online Radio Stations — Real-Time Audio Sync</h1>
           </div>
-          <form onSubmit={event => {
-            event.preventDefault();
-            const value = Number(frequency);
-            if (!frequency || !Number.isFinite(value) || value < 0 || value > 100) return;
-            if (mode === 'create') handleCreateStation(value);
-            else handleJoinStation(value);
-          }}>
-            {mode === 'create' ? <label>Station name <input value={stationName} placeholder="Optional" onChange={e => setStationName(e.target.value)} disabled={pending} /></label>
-              : <label>Your name <input value={hostName} placeholder="Optional" onChange={e => setHostNameState(e.target.value)} disabled={pending} /></label>}
-            <label>Frequency (FM) <input required type="number" inputMode="decimal" min="0" max="100" step="0.5"
-              value={frequency} placeholder="82.5" onChange={event => setFrequency(event.target.value)} disabled={pending} /></label>
-            <button className="primary-action" disabled={pending || !isConnected}>
-              {pending ? 'Connecting…' : mode === 'create' ? 'Create station' : 'Join station'}<ArrowRight size={17} />
-            </button>
-            {error && <p role="alert" className="lobby-error">{error}</p>}
-          </form>
-        </section>
-      </div>
-      <section className="lobby-directory" aria-labelledby="directory-heading">
-        <div className="workspace-section-header"><h2 id="directory-heading">Open frequencies</h2><span>{openStations.length} available</span></div>
-        {openStations.length ? <ul>{openStations.map(station => (
-          <li key={station.frequency}>
-            <button type="button" disabled={pending || !isConnected} onClick={() => {
-              setFrequency(String(station.frequency));
+          <h2 className="vintage-subtitle" style={{ fontSize: '1.2rem', color: '#f5deb3', marginTop: '1rem', letterSpacing: '0px' }}>Create a station, upload audio, and listen together. Zero latency. Zero signup.</h2>
+        </div>
+
+        <div className="seo-value-grid">
+          <div className="seo-value-item">
+            <h3>Host Audio for Remote Teams</h3>
+            <p>Synchronized background music and ambient audio for distributed teams working together online.</p>
+          </div>
+          <div className="seo-value-item">
+            <h3>Listen Together — TTRPG &amp; D&amp;D</h3>
+            <p>Broadcast synchronized battle music and ambient soundscapes to all player devices instantly.</p>
+          </div>
+          <div className="seo-value-item">
+            <h3>Create a Station for Your DJ Set</h3>
+            <p>Share uncompressed audio demo sessions in perfect sync. No OBS, no software — just a browser.</p>
+          </div>
+        </div>
+
+        <p style={{ textAlign: 'center', color: '#8b6f47', fontSize: '0.85rem', maxWidth: '600px', margin: '0 auto 1.5rem auto', lineHeight: '1.6' }}>
+          Virtual Radio lets you host a free real-time radio station, upload your audio playlist, and sync every listener to the exact same playback position — automatically, with under 3 seconds of latency.
+        </p>
+
+        <div className="vintage-buttons-grid">
+          <button
+            className="vintage-card-button create-btn"
+            onClick={() => {
+              setMode('create');
+              setError('');
+            }}
+          >
+            <div className="card-icon">🎙️</div>
+            <div className="card-title">Create Station</div>
+            <div className="card-desc">Broadcast your own station</div>
+          </button>
+
+          <button
+            className="vintage-card-button join-btn"
+            onClick={() => {
               setMode('join');
               setError('');
-              if (mode === 'join') handleJoinStation(station.frequency);
-            }}>
-              <span className="directory-band">{station.frequency} FM</span>
-              <strong>{station.hostName || 'Radio station'}</strong>
-              <span className={station.isPlaying ? 'station-live' : ''}>{station.isPlaying ? 'Live' : 'Open'}</span>
-              <span><Headphones size={15} aria-label="Listeners" /> {station.listenerCount}</span>
-            </button>
-          </li>
-        ))}</ul> : <p className="queue-empty">{isConnected ? 'No stations are open right now.' : 'Connecting to the radio server…'}</p>}
-      </section>
-    </div>
-  );
+            }}
+          >
+            <div className="card-icon">👂</div>
+            <div className="card-title">Join Station</div>
+            <div className="card-desc">Listen to existing stations</div>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (mode === 'create') {
+    return (
+      <div className="role-selector vintage">
+        <button className="back-btn" onClick={() => setMode(null)}>← Back</button>
+
+        <h2 className="mode-title">🎙️ Create Your Station</h2>
+
+        <div className="create-form-wrapper">
+          <div className="form-section">
+            <label className="form-label">Station Name</label>
+            <input
+              type="text"
+              className="vintage-input"
+              placeholder="e.g., Jazz FM, Rock Radio (optional)"
+              value={stationName}
+              onChange={(e) => setStationName(e.target.value)}
+              disabled={creating}
+            />
+          </div>
+
+          {error && <div className="vintage-error">{error}</div>}
+
+          <VintageTuner
+            onTune={handleCreateStation}
+            minFrequency={0}
+            maxFrequency={100}
+            step={0.5}
+            title="Tune Your Frequency"
+          />
+
+          <p className="vintage-hint">Turn the dial to select your station (0-100, step: 0.5)</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (mode === 'join') {
+    const openStations = [...stations].sort((a, b) => Number(Boolean(b.isPlaying)) - Number(Boolean(a.isPlaying)) || a.frequency - b.frequency);
+    return (
+      <div className="role-selector vintage">
+        <button className="back-btn" onClick={() => setMode(null)}>← Back</button>
+
+        <h2 className="mode-title">👂 Join a Station</h2>
+
+        <div className="create-form-wrapper">
+          <div className="form-section">
+            <label className="form-label">Your Name</label>
+            <input
+              type="text"
+              className="vintage-input"
+              placeholder="Enter your name (optional)"
+              value={hostName}
+              onChange={(e) => setHostNameState(e.target.value)}
+              disabled={joining}
+            />
+          </div>
+
+          {error && <div className="vintage-error">{error}</div>}
+
+          <section className="station-directory" aria-labelledby="station-directory-title">
+            <h3 id="station-directory-title">Open Frequencies</h3>
+            {!isConnected ? (
+              <p role="status">Connecting to the radio server…</p>
+            ) : openStations.length === 0 ? (
+              <p role="status">No stations are open right now.</p>
+            ) : (
+              <ul>
+                {openStations.map(station => (
+                  <li key={station.frequency}>
+                    <button type="button" disabled={joining} onClick={() => handleJoinStation(station.frequency)}
+                      aria-label={`Tune to ${station.frequency} FM`}>
+                      <span className="station-directory-frequency">{station.frequency} FM</span>
+                      <span className="station-directory-host">{station.hostName || 'Radio station'}</span>
+                      <span className={station.isPlaying ? 'station-directory-status playing' : 'station-directory-status'}>
+                        {station.isPlaying ? 'Playing' : station.currentTrack ? 'Paused' : 'Open'}
+                      </span>
+                      <span className="station-directory-listeners">
+                        {station.listenerCount} {station.listenerCount === 1 ? 'listener' : 'listeners'}
+                      </span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
+
+          <VintageTuner
+            onTune={handleJoinStation}
+            minFrequency={0}
+            maxFrequency={100}
+            step={0.5}
+            title="Tune To Station"
+            showFrequencyInput={true}
+            startingFrequency={sharedFrequency}
+          />
+
+          <p className="vintage-hint">Type or rotate the dial to find and connect to a station (0-100, step: 0.5)</p>
+        </div>
+      </div>
+    );
+  }
 };

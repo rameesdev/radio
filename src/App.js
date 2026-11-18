@@ -113,7 +113,7 @@ function App() {
   }, [error]);
 
   return (
-    <div className="app radio-app">
+    <div className={userRole ? "app radio-app" : "app"}>
       {notification && <div className="notification" role="status">{notification}</div>}
 
       <ScrollToTop />

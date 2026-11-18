@@ -13,8 +13,11 @@ const calculateAngle = (clientX, clientY, rect) => {
   return Math.atan2(clientY - centerY, clientX - centerX);
 };
 
-export const VintageTuner = ({ onTune, minFrequency = 0, maxFrequency = 100, step = 0.5, title = "Select Station", showFrequencyInput = false }) => {
-  const initialFreq = quantizeFrequency((minFrequency + maxFrequency) / 2, step);
+export const VintageTuner = ({ onTune, minFrequency = 0, maxFrequency = 100, step = 0.5, title = "Select Station", showFrequencyInput = false, startingFrequency = null }) => {
+  const requested = startingFrequency === null ? NaN : Number(startingFrequency);
+  const initialFreq = Number.isFinite(requested) && requested >= minFrequency && requested <= maxFrequency
+    ? quantizeFrequency(requested, step)
+    : quantizeFrequency((minFrequency + maxFrequency) / 2, step);
   const [frequency, setFrequency] = useState(initialFreq.toFixed(1));
   const [rotation, setRotation] = useState(0);
   const [isDragging, setIsDragging] = useState(false);
