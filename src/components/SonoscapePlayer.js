@@ -143,7 +143,8 @@ export const SonoscapePlayer = ({
     let peakHold = 0;
     let peakTimer = 0;
     let flashAlpha = 0;
-    let polygonBeatStrength = 0;
+    let polygonGlow = 0;
+    let lastPolygonFrame;
     let shakeX = 0;
     let shakeY = 0;
     let energySmooth = 0;
@@ -283,7 +284,6 @@ export const SonoscapePlayer = ({
         if (bpmDisplay) bpmDisplay.textContent = detectedBpm;
       }
       lastBeatTime = now;
-      polygonBeatStrength = Math.min(1, Math.max(0, (low - 0.24) * 1.35 + rise * 0.6));
       flashAlpha = Math.min(low * 0.32, 0.24);
       if (shakeOn) {
         shakeX = (Math.random() - 0.5) * 8;
@@ -418,7 +418,8 @@ export const SonoscapePlayer = ({
         edgePulses.length = 0;
         lastEdgePulse = -Infinity;
         lastBeatTime = 0;
-        polygonBeatStrength = 0;
+        polygonGlow = 0;
+        lastPolygonFrame = undefined;
         previousBass = 0;
         bassBaseline = 0;
         bpmHistory.length = 0;
@@ -610,7 +611,13 @@ export const SonoscapePlayer = ({
         });
       } else if (mode === 'polygon') {
         const cx = W / 2; const cy = H / 2; const R = Math.min(W, H) * 0.38; const SIDES = 6;
-        const glow = polygonBeatStrength * Math.max(0, 1 - sinceBeat / 420) ** 2;
+        const dt = Math.min(100, timestamp - (lastPolygonFrame ?? timestamp - 16));
+        lastPolygonFrame = timestamp;
+        const low = (freq[2] + freq[3] + freq[4] + freq[5]) / (4 * 255);
+        const level = 0.65 * low + 0.35 * avg;
+        const response = level > polygonGlow ? 45 : 190;
+        polygonGlow += (level - polygonGlow) * (1 - Math.exp(-dt / response));
+        const glow = polygonGlow;
         ctx.save();
         for (let ring = 1; ring <= 6; ring++) {
           const rv = Math.min((freq[Math.floor(zBins * (ring / 8))] / 255) * gain, 1.2); const rr = R * (ring / 6) * (0.6 + rv * 0.5 + glow * 0.2);
